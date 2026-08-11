@@ -1,0 +1,25 @@
+{
+  "name": "budget-tracker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mobile-friendly monthly budget tracker. Data stored locally (IndexedDB/localStorage) and optionally synced to Supabase for multi-device access. No custom server required.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.4"
+  }
+}

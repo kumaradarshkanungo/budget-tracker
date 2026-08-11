@@ -1,0 +1,111 @@
+import { billsTotal, billsPending, billsCount } from '../lib/calc.js'
+import { uid } from '../lib/storage.js'
+import { Computed, Section, IconButton } from './ui.jsx'
+import { MoneyInput, TextInput } from './Inputs.jsx'
+import { useEditable } from '../context/EditModeContext.jsx'
+
+// Bills & EMIs — date, name, bank tag, amount, paid checkbox.
+export function BillsEmis({ month, addRow, updateRow, deleteRow }) {
+  const editable = useEditable()
+  const total = billsTotal(month)
+  const pending = billsPending(month)
+  const { paid, total: count } = billsCount(month)
+  const banks = month.banks || []
+
+  return (
+    <Section
+      title="Bills & EMIs"
+      accent="#f0a92e"
+      actions={
+        <IconButton
+          label="Add bill"
+          onClick={() =>
+            addRow('bills', {
+              id: uid('b'),
+              date: '',
+              name: '',
+              bankId: banks[0]?.id || '',
+              amount: 0,
+              paid: false,
+            })
+          }
+        />
+      }
+    >
+      <div className="table bills-table">
+        <div className="thead">
+          <span>Date</span>
+          <span>Name</span>
+          <span>Bank</span>
+          <span>Amount</span>
+          <span>Paid</span>
+          <span />
+        </div>
+        {(month.bills || []).map(b => (
+          <div className={`trow ${b.paid ? 'is-paid' : ''}`} key={b.id}>
+            <span data-label="Date">
+              <TextInput
+                type="date"
+                value={b.date}
+                onChange={v => updateRow('bills', b.id, { date: v })}
+              />
+            </span>
+            <span data-label="Name">
+              <TextInput
+                value={b.name}
+                placeholder="Name"
+                onChange={v => updateRow('bills', b.id, { name: v })}
+              />
+            </span>
+            <span data-label="Bank">
+              {editable ? (
+                <select
+                  className="cell-input"
+                  value={b.bankId}
+                  onChange={e => updateRow('bills', b.id, { bankId: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {banks.map(bk => (
+                    <option key={bk.id} value={bk.id}>
+                      {bk.name || 'Bank'}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="cell-display ro text">
+                  {banks.find(bk => bk.id === b.bankId)?.name || '—'}
+                </span>
+              )}
+            </span>
+            <span data-label="Amount">
+              <MoneyInput value={b.amount} onChange={v => updateRow('bills', b.id, { amount: v })} />
+            </span>
+            <span data-label="Paid" className="paid-cell">
+              <input
+                type="checkbox"
+                checked={!!b.paid}
+                onChange={e => updateRow('bills', b.id, { paid: e.target.checked })}
+              />
+            </span>
+            <span className="row-actions">
+              <IconButton label="Delete" variant="danger" onClick={() => deleteRow('bills', b.id)} />
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="bills-footer">
+        <div className="row total-row">
+          <span>Total</span>
+          <Computed value={total} strong />
+        </div>
+        <div className="row total-row">
+          <span>Amount Pending</span>
+          <span className="pending-wrap">
+            <Computed value={pending} strong />
+            <span className="count-badge">{paid}/{count}</span>
+          </span>
+        </div>
+      </div>
+    </Section>
+  )
+}
