@@ -2,7 +2,6 @@ node_modules
 dist
 
 # Secrets — never commit
-.env
 .env.*
 !.env.example
 client_secret_*.json
