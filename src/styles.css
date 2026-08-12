@@ -568,8 +568,9 @@ html, body {
   .date-card { grid-template-columns: 1fr 1fr; }
 
   .thead { display: none; }
-  .budget-table .trow, .bills-table .trow {
-    grid-template-columns: 1fr 1fr;
+  .budget-table .trow {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 6px 10px;
     padding: 12px 0;
   }
@@ -580,9 +581,21 @@ html, body {
     padding: 12px 0;
   }
   .spends-table .trow > span[data-label='Notes'] { grid-column: 1 / -1; }
-  /* Name/category spans full width on top of each card row. */
-  .bills-table .trow > span:nth-child(2),
+  /* Category spans full width on top of each budget card row. */
   .budget-table .trow > span:nth-child(1) { grid-column: 1 / -1; }
+  /* Budget: delete button spans its own full-width row below the numbers. */
+  .budget-table .trow > .row-actions { grid-column: 1 / -1; }
+  /* Bills: card layout with the Paid tick at the top-left, above everything. */
+  .bills-table .trow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 12px 0;
+  }
+  .bills-table .trow > span { flex: 1 1 40%; }
+  .bills-table .trow > span[data-label='Name'] { flex-basis: 100%; }
+  .bills-table .trow > .paid-cell { order: -1; flex-basis: 100%; }
+  .bills-table .paid-cell { justify-content: flex-start; }
   .trow > span { display: flex; flex-direction: column; gap: 3px; }
   .trow > span::before {
     content: attr(data-label);
@@ -596,4 +609,7 @@ html, body {
   .trow .cell-display.ro.money { text-align: left; }
   .row-actions { justify-content: flex-start; }
   .trow.total { grid-template-columns: 1fr 1fr; }
+  /* Budget total keeps the 3-up money layout; label spans full width on top. */
+  .budget-table .trow.total { grid-template-columns: 1fr 1fr 1fr; }
+  .budget-table .trow.total > span:nth-child(1) { grid-column: 1 / -1; }
 }
