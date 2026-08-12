@@ -40,6 +40,25 @@ function daysInMonth(id) {
   return new Date(y, m, 0).getDate() // day 0 of next month = last day of this
 }
 
+// The calendar month before the given "YYYY-MM" id, handling the year rollover.
+// "2026-09" -> "2026-08", "2026-01" -> "2025-12". Returns '' on invalid input.
+export function prevMonthId(id) {
+  const [y, m] = String(id).split('-').map(Number)
+  if (!y || !m) return ''
+  const py = m === 1 ? y - 1 : y
+  const pm = m === 1 ? 12 : m - 1
+  return `${py}-${String(pm).padStart(2, '0')}`
+}
+
+// Sum of a given card's spends in a month. Inlined here (rather than importing
+// creditCardTotal from calc.js) because calc.js imports from this module, so the
+// reverse import would create a cycle. Mirrors creditCardTotal(month, cardId).
+function sumCardSpends(month, cardId) {
+  return (month?.creditCards || [])
+    .filter(s => s.cardId === cardId)
+    .reduce((n, s) => n + (Number.isFinite(s.amount) ? s.amount : 0), 0)
+}
+
 // Last day of the month, ISO date string. "2026-08" -> "2026-08-31"
 export function monthEndDate(id) {
   const [y, m] = String(id).split('-').map(Number)
@@ -129,7 +148,14 @@ export function saveStore(store) {
 // last day (so day 31 in February lands on the 28th/29th). Bank is resolved by
 // NAME against the month's banks (ids are regenerated per month), falling back
 // to untagged when there's no match. New bills always start unpaid.
-export function materializeRecurringBills(monthId, recurringBills, banks) {
+//
+// A template with type 'card' represents a credit-card payment: its NAME is the
+// card's name (from opts.cards) and, when the template amount is 0/blank, its
+// AMOUNT is prefetched from that card's total spends in opts.prevMonth (the
+// calendar month before this one). A non-zero template amount is treated as a
+// manual override and used as-is.
+export function materializeRecurringBills(monthId, recurringBills, banks, opts = {}) {
+  const { prevMonth = null, cards = [] } = opts
   const [y, m] = String(monthId).split('-')
   const yy = Number(y)
   const mm = Number(m)
@@ -142,13 +168,22 @@ export function materializeRecurringBills(monthId, recurringBills, banks) {
       const day = Math.min(d, last)
       date = `${yy}-${String(mm).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     }
+
+    let name = tpl.name || ''
+    let amount = tpl.amount || 0
+    if (tpl.type === 'card') {
+      name = cards.find(c => c.id === tpl.cardId)?.name || ''
+      // Blank/zero template amount → prefetch from the prior month's card spends.
+      if (!amount) amount = sumCardSpends(prevMonth, tpl.cardId)
+    }
+
     const bank = (banks || []).find(b => b.name === tpl.bankName)
     return {
       id: uid('b'),
       date,
-      name: tpl.name || '',
+      name,
       bankId: bank?.id || '',
-      amount: tpl.amount || 0,
+      amount,
       paid: false,
     }
   })
@@ -157,8 +192,9 @@ export function materializeRecurringBills(monthId, recurringBills, banks) {
 // Build a fresh month for the given "YYYY-MM" id. Carries over bank names and
 // budget categories from a template month (amounts zeroed). Marks the settings
 // default bank as primary if present, else keeps the template's primary. Seeds
-// the month's bills from the global recurring-bill templates in settings.
-export function newMonthFor(monthId, template, defaultBankName, settings) {
+// the month's bills from the global recurring-bill templates in settings —
+// credit-card templates prefetch their amount from prevMonth's card spends.
+export function newMonthFor(monthId, template, defaultBankName, settings, prevMonth) {
   let banks = (template?.banks || []).map(b => ({ ...b, id: uid('bank'), actual: 0 }))
   const budget = (template?.budget || []).map(b => ({ ...b, id: uid('bg'), spend: 0 }))
   if (!banks.length) banks = [{ id: uid('bank'), name: defaultBankName || 'Bank', actual: 0, primary: true }]
@@ -173,7 +209,10 @@ export function newMonthFor(monthId, template, defaultBankName, settings) {
     holdings: [{ id: uid('h'), label: 'Available', amount: 0 }],
     banks,
     budget,
-    bills: materializeRecurringBills(monthId, settings?.recurringBills || [], banks),
+    bills: materializeRecurringBills(monthId, settings?.recurringBills || [], banks, {
+      prevMonth,
+      cards: settings?.creditCards || [],
+    }),
     creditCards: [],
   }
 }

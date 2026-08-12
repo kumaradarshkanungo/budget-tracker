@@ -1,25 +1,88 @@
+import { useEffect, useRef, useState } from 'react'
 import { billsTotal, billsPending, billsCount } from '../lib/calc.js'
 import { uid } from '../lib/storage.js'
 import { Computed, Section, IconButton } from './ui.jsx'
 import { MoneyInput, TextInput } from './Inputs.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
 
+// Small popover menu behind the "＋ Add bill" button: add a blank bill, or a bill
+// from a credit card (name auto-filled, amount prefetched from the prior month).
+function AddBillMenu({ cards, onAddBlank, onAddCard }) {
+  const [open, setOpen] = useState(false)
+  const [pickCard, setPickCard] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+        setPickCard(false)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  return (
+    <span className="add-bill-menu" ref={ref}>
+      <IconButton label="Add bill" onClick={() => { setOpen(o => !o); setPickCard(false) }} />
+      {open && (
+        <div className="add-bill-pop" role="menu">
+          {!pickCard ? (
+            <>
+              <button
+                className="add-bill-item"
+                onClick={() => { onAddBlank(); setOpen(false) }}
+              >
+                Blank bill
+              </button>
+              <button
+                className="add-bill-item"
+                disabled={!cards.length}
+                onClick={() => setPickCard(true)}
+              >
+                From credit card {cards.length ? '▸' : ''}
+              </button>
+              {!cards.length && <p className="hint add-bill-hint">No credit cards — add one in Settings.</p>}
+            </>
+          ) : (
+            <>
+              <div className="add-bill-menu-head">Pick a card</div>
+              {cards.map(c => (
+                <button
+                  key={c.id}
+                  className="add-bill-item"
+                  onClick={() => { onAddCard(c.id); setOpen(false); setPickCard(false) }}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
+
 // Bills & EMIs — date, name, bank tag, amount, paid checkbox.
-export function BillsEmis({ month, addRow, updateRow, deleteRow }) {
+export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCardBill }) {
   const editable = useEditable()
   const total = billsTotal(month)
   const pending = billsPending(month)
   const { paid, total: count } = billsCount(month)
   const banks = month.banks || []
+  const cards = (settings && settings.creditCards) || []
 
   return (
     <Section
       title="Bills & EMIs"
       accent="#f0a92e"
       actions={
-        <IconButton
-          label="Add bill"
-          onClick={() =>
+        <AddBillMenu
+          cards={cards}
+          onAddBlank={() =>
             addRow('bills', {
               id: uid('b'),
               date: '',
@@ -29,6 +92,7 @@ export function BillsEmis({ month, addRow, updateRow, deleteRow }) {
               paid: false,
             })
           }
+          onAddCard={cardId => addCardBill && addCardBill(cardId)}
         />
       }
     >

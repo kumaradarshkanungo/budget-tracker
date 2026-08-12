@@ -203,12 +203,32 @@ export function Settings({
       <Section title="Repeated Bills & EMIs">
         <p className="hint section-intro">
           Bills that repeat every month (loans, EMIs, SIPs). Set the <strong>day</strong>, name, bank
-          and amount once — the year and month are filled in automatically. These are added
+          and amount once — the year and month are filled in automatically. Set <strong>Type</strong> to
+          <strong> Credit card</strong> to name the bill after a card and prefetch its amount from the
+          previous month's card spends (still editable). These are added
           <strong> automatically to new months you create</strong>; existing months are left unchanged.
         </p>
         <div className="recurring-list">
-          {recurringBills.map(r => (
+          {recurringBills.map(r => {
+            const isCard = r.type === 'card'
+            const cardName = isCard ? (cards.find(c => c.id === r.cardId)?.name || '—') : ''
+            return (
             <div className="recurring-row" key={r.id}>
+              <span className="rec-field" data-label="Type">
+                <span className="rec-label">Type</span>
+                {editable ? (
+                  <select
+                    className="cell-input"
+                    value={r.type || 'manual'}
+                    onChange={e => updateRecurringBill(r.id, { type: e.target.value })}
+                  >
+                    <option value="manual">Manual</option>
+                    <option value="card">Credit card</option>
+                  </select>
+                ) : (
+                  <span className="cell-display ro text">{isCard ? 'Credit card' : 'Manual'}</span>
+                )}
+              </span>
               <span className="rec-field" data-label="Day">
                 <span className="rec-label">Day</span>
                 {editable ? (
@@ -228,14 +248,36 @@ export function Settings({
                   <span className="cell-display ro text">{r.day || '—'}</span>
                 )}
               </span>
-              <span className="rec-field" data-label="Name">
-                <span className="rec-label">Name</span>
-                <TextInput
-                  value={r.name}
-                  placeholder="Name"
-                  onChange={v => updateRecurringBill(r.id, { name: v })}
-                />
-              </span>
+              {isCard ? (
+                <span className="rec-field" data-label="Card">
+                  <span className="rec-label">Card</span>
+                  {editable ? (
+                    <select
+                      className="cell-input"
+                      value={r.cardId || ''}
+                      onChange={e => updateRecurringBill(r.id, { cardId: e.target.value })}
+                    >
+                      <option value="">—</option>
+                      {cards.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="cell-display ro text">{cardName}</span>
+                  )}
+                </span>
+              ) : (
+                <span className="rec-field" data-label="Name">
+                  <span className="rec-label">Name</span>
+                  <TextInput
+                    value={r.name}
+                    placeholder="Name"
+                    onChange={v => updateRecurringBill(r.id, { name: v })}
+                  />
+                </span>
+              )}
               <span className="rec-field" data-label="Bank">
                 <span className="rec-label">Bank</span>
                 {editable ? (
@@ -263,7 +305,8 @@ export function Settings({
                 <IconButton label="Delete repeated bill" variant="danger" onClick={() => handleDeleteRecurring(r)} />
               </span>
             </div>
-          ))}
+            )
+          })}
           {recurringBills.length === 0 && <p className="hint">No repeated bills yet — add one below.</p>}
         </div>
         {editable && (

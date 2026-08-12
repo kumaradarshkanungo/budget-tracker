@@ -6,8 +6,10 @@ import {
   normalizeStore,
   labelForMonthId,
   applyDefaultBank,
+  prevMonthId,
   uid,
 } from '../lib/storage.js'
+import { creditCardTotal } from '../lib/calc.js'
 import { fetchRemoteStore, saveRemoteStore } from '../lib/remoteStore.js'
 import { supabase } from '../lib/supabase.js'
 
@@ -251,9 +253,11 @@ export function useBudgetStore(userId) {
   }, [])
 
   // ---- Recurring bills & EMIs (global master list in settings) ----------
-  // Templates hold only { day, name, bankName, amount }. They're materialized
-  // into a month's bills when that month is CREATED (see addMonth / newMonthFor),
-  // so editing them affects future months only — existing months are untouched.
+  // Templates hold { day, name, bankName, amount, type, cardId }. type 'manual'
+  // is a plain bill; type 'card' names itself after a credit card and prefetches
+  // its amount from the prior month's spends at materialization. They're
+  // materialized into a month's bills when that month is CREATED (see addMonth /
+  // newMonthFor), so editing them affects future months only.
   const addRecurringBill = useCallback((tpl = {}) => {
     setStore(prev => ({
       ...prev,
@@ -261,7 +265,7 @@ export function useBudgetStore(userId) {
         ...(prev.settings || {}),
         recurringBills: [
           ...((prev.settings || {}).recurringBills || []),
-          { id: uid('rb'), day: '', name: '', bankName: '', amount: 0, ...tpl },
+          { id: uid('rb'), day: '', name: '', bankName: '', amount: 0, type: 'manual', cardId: '', ...tpl },
         ],
       },
     }))
@@ -289,6 +293,29 @@ export function useBudgetStore(userId) {
     }))
   }, [])
 
+  // Add a credit-card bill to the ACTIVE month's Bills & EMIs. Its name is the
+  // card's name and its amount is prefetched from that card's total spends in the
+  // calendar prior month (0 if there's no prior month). Date is left blank for
+  // the user to set inline; amount stays editable afterward. Tagged to the
+  // primary bank (or first bank) by default.
+  const addCardBill = useCallback(cardId => {
+    setStore(prev => {
+      const cards = (prev.settings || {}).creditCards || []
+      const card = cards.find(c => c.id === cardId)
+      if (!card) return prev
+      const cur = prev.months[prev.activeMonthId]
+      const prevMonth = prev.months[prevMonthId(prev.activeMonthId)]
+      const amount = prevMonth ? creditCardTotal(prevMonth, cardId) : 0
+      const banks = cur.banks || []
+      const bankId = (banks.find(b => b.primary) || banks[0])?.id || ''
+      const bill = { id: uid('b'), date: '', name: card.name, bankId, amount, paid: false }
+      return {
+        ...prev,
+        months: { ...prev.months, [prev.activeMonthId]: { ...cur, bills: [...(cur.bills || []), bill] } },
+      }
+    })
+  }, [])
+
   // ---- Month management --------------------------------------------------
   const months = useMemo(
     () =>
@@ -305,7 +332,8 @@ export function useBudgetStore(userId) {
     setStore(prev => {
       if (prev.months[monthId]) return { ...prev, activeMonthId: monthId }
       const tmpl = prev.months[prev.activeMonthId]
-      const m = newMonthFor(monthId, tmpl, prev.settings?.defaultBankName, prev.settings)
+      const prevMonth = prev.months[prevMonthId(monthId)]
+      const m = newMonthFor(monthId, tmpl, prev.settings?.defaultBankName, prev.settings, prevMonth)
       return { ...prev, activeMonthId: monthId, months: { ...prev.months, [monthId]: m } }
     })
   }, [])
@@ -353,6 +381,7 @@ export function useBudgetStore(userId) {
     addRecurringBill,
     updateRecurringBill,
     deleteRecurringBill,
+    addCardBill,
     switchMonth,
     addMonth,
     deleteMonth,

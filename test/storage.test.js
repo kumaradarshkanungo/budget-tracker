@@ -8,6 +8,7 @@ import {
   defaultStore,
   applyDefaultBank,
   materializeRecurringBills,
+  prevMonthId,
 } from '../src/lib/storage.js'
 
 describe('month date derivation', () => {
@@ -214,5 +215,73 @@ describe('newMonthFor seeds recurring bills', () => {
   it('creates no bills when there are no recurring templates', () => {
     expect(newMonthFor('2026-09', template, 'IDFC', { recurringBills: [] }).bills).toEqual([])
     expect(newMonthFor('2026-09', template, 'IDFC', undefined).bills).toEqual([])
+  })
+})
+
+describe('prevMonthId', () => {
+  it('decrements within the same year', () => {
+    expect(prevMonthId('2026-09')).toBe('2026-08')
+    expect(prevMonthId('2026-12')).toBe('2026-11')
+  })
+  it('rolls over January to the previous December', () => {
+    expect(prevMonthId('2026-01')).toBe('2025-12')
+  })
+  it('zero-pads the month', () => {
+    expect(prevMonthId('2026-11')).toBe('2026-10')
+    expect(prevMonthId('2026-02')).toBe('2026-01')
+  })
+  it('returns empty string on invalid input', () => {
+    expect(prevMonthId('bogus')).toBe('')
+    expect(prevMonthId('')).toBe('')
+  })
+})
+
+describe('materializeRecurringBills — credit-card templates', () => {
+  const banks = [{ id: 'bank-idfc', name: 'IDFC' }]
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const prevMonth = {
+    creditCards: [
+      { id: 's1', cardId: 'card-hdfc', amount: 1200 },
+      { id: 's2', cardId: 'card-hdfc', amount: 800 },
+      { id: 's3', cardId: 'card-other', amount: 9999 },
+    ],
+  }
+
+  it('names the bill after the card and prefetches the prior month total when amount is 0', () => {
+    const tpl = [{ id: 'rb', type: 'card', cardId: 'card-hdfc', day: 20, bankName: 'IDFC', amount: 0 }]
+    const bill = materializeRecurringBills('2026-09', tpl, banks, { prevMonth, cards })[0]
+    expect(bill).toMatchObject({ name: 'HDFC Card', date: '2026-09-20', bankId: 'bank-idfc', amount: 2000, paid: false })
+  })
+
+  it('treats a non-zero template amount as a manual override', () => {
+    const tpl = [{ id: 'rb', type: 'card', cardId: 'card-hdfc', day: 20, bankName: 'IDFC', amount: 555 }]
+    expect(materializeRecurringBills('2026-09', tpl, banks, { prevMonth, cards })[0].amount).toBe(555)
+  })
+
+  it('prefetches 0 when there is no prior month', () => {
+    const tpl = [{ id: 'rb', type: 'card', cardId: 'card-hdfc', day: 20, bankName: 'IDFC', amount: 0 }]
+    expect(materializeRecurringBills('2026-09', tpl, banks, { cards })[0].amount).toBe(0)
+  })
+
+  it('resolves an unknown card to an empty name', () => {
+    const tpl = [{ id: 'rb', type: 'card', cardId: 'gone', day: 20, bankName: 'IDFC', amount: 0 }]
+    expect(materializeRecurringBills('2026-09', tpl, banks, { prevMonth, cards })[0].name).toBe('')
+  })
+})
+
+describe('newMonthFor seeds card-type recurring bills', () => {
+  const template = { banks: [{ id: 'x', name: 'IDFC', actual: 9, primary: true }], budget: [] }
+  const settings = {
+    defaultBankName: 'IDFC',
+    creditCards: [{ id: 'card-hdfc', name: 'HDFC Card' }],
+    recurringBills: [{ id: 'rb', type: 'card', cardId: 'card-hdfc', day: 15, bankName: 'IDFC', amount: 0 }],
+  }
+  const prevMonth = { creditCards: [{ id: 's1', cardId: 'card-hdfc', amount: 4321 }] }
+
+  it('prefetches the card bill amount from the prior month', () => {
+    const m = newMonthFor('2026-09', template, 'IDFC', settings, prevMonth)
+    const idfc = m.banks.find(b => b.name === 'IDFC')
+    expect(m.bills).toHaveLength(1)
+    expect(m.bills[0]).toMatchObject({ name: 'HDFC Card', date: '2026-09-15', bankId: idfc.id, amount: 4321, paid: false })
   })
 })

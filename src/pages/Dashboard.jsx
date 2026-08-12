@@ -21,7 +21,7 @@ export function Dashboard() {
       </div>
 
       <div className="grid-full">
-        <BillsEmis month={month} addRow={s.addRow} updateRow={s.updateRow} deleteRow={s.deleteRow} />
+        <BillsEmis month={month} settings={s.settings} addRow={s.addRow} updateRow={s.updateRow} deleteRow={s.deleteRow} addCardBill={s.addCardBill} />
       </div>
     </>
   )

@@ -561,8 +561,10 @@ html, body {
 }
 .recurring-row:last-child { border-bottom: none; }
 .rec-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rec-field[data-label='Type'] { flex: 0 0 82px; }
 .rec-field[data-label='Day'] { flex: 0 0 44px; }
 .rec-field[data-label='Name'] { flex: 1 1 auto; }
+.rec-field[data-label='Card'] { flex: 1 1 auto; }
 .rec-field[data-label='Bank'] { flex: 1 1 auto; }
 .rec-field[data-label='Amount'] { flex: 0 0 92px; }
 .rec-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
@@ -572,6 +574,24 @@ html, body {
 /* Keep money/text from forcing the row wider than the viewport on phones. */
 .recurring-row .cell-input,
 .recurring-row .cell-display { padding-left: 6px; padding-right: 6px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Bills & EMIs "＋ Add bill" popover menu (blank bill / from credit card). */
+.add-bill-menu { position: relative; display: inline-flex; }
+.add-bill-pop {
+  position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 4px;
+  min-width: 180px; max-width: 240px;
+  background: var(--card, #fff); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 4px; display: flex; flex-direction: column; gap: 2px;
+}
+.add-bill-menu-head { font-size: 11px; color: var(--muted); padding: 6px 8px 2px; }
+.add-bill-item {
+  text-align: left; background: none; border: none; cursor: pointer;
+  padding: 8px 10px; border-radius: 6px; font-size: 14px; color: inherit;
+}
+.add-bill-item:hover:not(:disabled) { background: var(--line); }
+.add-bill-item:disabled { opacity: 0.5; cursor: default; }
+.add-bill-hint { margin: 2px 8px 4px; }
 
 /* ---- Responsive: desktop layout ---------------------------------------- */
 /* Tablet: two columns for the top sections. */
