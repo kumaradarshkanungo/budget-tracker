@@ -694,15 +694,39 @@ html, body {
      Type/Day and Bank/Amount pairs stranded one-per-full-width-row. */
   .bills-table .trow {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Row 1: [Paid checkbox][Date] as one left-aligned unit — the checkbox
+       column sizes to its content (auto) and sits immediately left of Date.
+       Row 2: Name full width. Row 3: Bank | Amount. */
+    grid-template-columns: auto 1fr;
     gap: 8px 10px;
     padding: 12px 0;
+    align-items: start;
   }
+  /* Paid: first cell of row 1, checkbox flush-left, attached to Date's left.
+     Drop its "PAID" label so the checkbox aligns cleanly beside the date input
+     as a single control; align it to the input's baseline (bottom of the cell,
+     under the DATE label above the date box). */
   .bills-table .trow > .paid-cell {
-    order: -1; /* Paid rides to the top-left and pairs with Date */
+    order: -1;
     justify-content: flex-start;
+    align-self: end;
+    padding-bottom: 8px; /* sink to the date input's vertical centre */
+  }
+  .bills-table .trow > .paid-cell::before { content: none; }
+  /* Date: rides beside the checkbox, left-aligned, and its native date input
+     sizes to its own value (auto) instead of stretching the full track and
+     looking cropped. */
+  .bills-table .trow > span[data-label='Date'] { align-items: flex-start; }
+  .bills-table .trow > span[data-label='Date'] .cell-input,
+  .bills-table .trow > span[data-label='Date'] .cell-display.ro.text {
+    width: auto;
+    text-align: left;
+    justify-self: start;
   }
   .bills-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
+  /* Bank | Amount share the last row evenly. */
+  .bills-table .trow > span[data-label='Bank'],
+  .bills-table .trow > span[data-label='Amount'] { grid-column: span 1; }
   /* Manage table: Type | Day, Name/Card full, Bank | Amount, delete full. */
   .manage-table .trow {
     display: grid;
