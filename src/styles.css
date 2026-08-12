@@ -715,14 +715,17 @@ html, body {
   .manage-table .trow > span[data-label='Amount'] { text-align: left; }
   .manage-table .trow > span[data-label='Amount'] .cell-input.money,
   .manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
-  /* Incomes table: Name full, Amount | delete. */
+  /* Incomes table: Name | Amount side by side on one line; delete (edit mode
+     only) drops to its own full-width row below. */
   .incomes-table .trow {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px 10px;
     padding: 12px 0;
   }
-  .incomes-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
+  /* Read-only mode: IconButton returns null, so .row-actions has no children
+     and matches :empty — collapse it so it adds no stray full-width gap. */
+  .incomes-table .trow > .row-actions:empty { display: none; }
   .incomes-table .trow > .row-actions { grid-column: 1 / -1; }
   .incomes-table .trow > span[data-label='Amount'] { text-align: left; }
   .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
