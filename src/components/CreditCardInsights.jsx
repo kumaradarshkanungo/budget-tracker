@@ -82,9 +82,12 @@ function Breakdown({ title, groups, total, keyOf }) {
           ))}
         </ul>
       </div>
-      <div className="row total-row">
+      <div className="row total-row insight-total">
         <span>Total</span>
-        <Computed value={total} strong />
+        <span className="insight-amount">
+          <Computed value={total} strong />
+          <span className="insight-pct" aria-hidden="true" />
+        </span>
       </div>
       <BarList groups={groups} keyOf={keyOf} active={active} setActive={setActive} />
     </Section>
