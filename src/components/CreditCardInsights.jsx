@@ -17,7 +17,7 @@ const COLORS = ['#7c5cff', '#2f9e8f', '#e8a13a', '#d64577', '#3a86e8', '#54b06e'
 const colorAt = i => COLORS[i % COLORS.length]
 
 // Detailed, read-only insights for the active month's credit-card spends: an
-// interactive donut (Recharts) + legend for both the per-card and per-category
+// interactive donut (Recharts) for both the per-card and per-category
 // breakdowns, plus labeled bars. All data comes from monthlyInsights
 // (src/lib/calc.js) — the same numbers the /credit-cards screen summarised.
 export function CreditCardInsights({ month, settings }) {
@@ -79,7 +79,7 @@ function Breakdown({ title, groups, total, keyOf }) {
   )
 }
 
-// Interactive Recharts donut. Hovering a slice (or a synced legend/bar row via
+// Interactive Recharts donut. Hovering a slice (or a synced bar row via
 // `active`) pops it out and shows a tooltip; the centre reads the active slice's
 // share, or the slice count when nothing is hovered.
 function DonutChart({ groups, active, setActive, label }) {
