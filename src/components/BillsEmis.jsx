@@ -74,6 +74,13 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
   const { paid, total: count } = billsCount(month)
   const banks = month.banks || []
   const cards = (settings && settings.creditCards) || []
+  // Show bills ordered by their day-of-month (ascending). Bills without a date
+  // sort last. A stable sort keeps insertion order among equal days.
+  const dayOf = b => {
+    const d = Number(String(b.date || '').split('-')[2])
+    return Number.isFinite(d) && d > 0 ? d : Infinity
+  }
+  const bills = [...(month.bills || [])].sort((a, b) => dayOf(a) - dayOf(b))
 
   return (
     <Section
@@ -105,7 +112,7 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
           <span>Paid</span>
           <span />
         </div>
-        {(month.bills || []).map(b => (
+        {bills.map(b => (
           <div className={`trow ${b.paid ? 'is-paid' : ''}`} key={b.id}>
             <span data-label="Date">
               <TextInput
@@ -170,8 +177,8 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
         <div className="row total-row">
           <span>Amount Pending</span>
           <span className="pending-wrap">
-            <Computed value={pending} strong />
             <span className="count-badge">{paid}/{count}</span>
+            <Computed value={pending} strong />
           </span>
         </div>
       </div>

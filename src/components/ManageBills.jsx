@@ -22,7 +22,13 @@ export function ManageBills({
   const banks = month?.banks || []
   const bankNames = Array.from(new Set(banks.map(b => b.name).filter(Boolean)))
   const cards = settings.creditCards || []
-  const recurringBills = settings.recurringBills || []
+  // Show repeated bills ordered by day-of-month (ascending); templates without a
+  // day sort last. Sorting a copy keeps the stored order untouched.
+  const dayOf = r => {
+    const d = Number(r.day)
+    return Number.isFinite(d) && d > 0 ? d : Infinity
+  }
+  const recurringBills = [...(settings.recurringBills || [])].sort((a, b) => dayOf(a) - dayOf(b))
 
   function handleDeleteRecurring(r) {
     if (window.confirm(`Delete repeated bill "${r.name || 'Unnamed'}"? It will be removed from future months. Current and past months are unaffected.`)) {

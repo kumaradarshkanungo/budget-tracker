@@ -40,7 +40,7 @@ const IconSignOut = () => (
 )
 
 const NAV_ITEMS = [
-  { label: 'Budget Tracker', path: '/', Icon: IconWallet },
+  { label: 'Monthly Overview', path: '/', Icon: IconWallet },
   { label: 'Credit Card Spends', path: '/credit-cards', Icon: IconCard },
   { label: 'Manage Bills & EMIs', path: '/manage-bills', Icon: IconBills },
   { label: 'Settings', path: '/settings', Icon: IconGear },

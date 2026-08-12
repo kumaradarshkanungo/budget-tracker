@@ -280,6 +280,9 @@ html, body {
 .row.two { gap: 8px; }
 .row.two > .cell-input:first-child,
 .row.two > .cell-display.ro:first-child { flex: 1; min-width: 0; }
+/* Insights bar rows: name takes the slack and truncates, so the amount+pct
+   block stays put on the right and never wraps. */
+.row.two > .insight-name { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .row-end { display: flex; align-items: center; gap: 6px; }
 /* Rows with a divider between each entry (e.g. Total Balance holdings), matching
    the Budget table's per-row separator. */
@@ -358,6 +361,11 @@ html, body {
 /* Credit card spends: Date | Category | Amount | Notes | (Card, all-cards view only) | delete */
 .spends-table .thead, .spends-table .trow { grid-template-columns: 1fr 1.2fr 1fr 1.4fr 32px; }
 .spends-table.with-card .thead, .spends-table.with-card .trow { grid-template-columns: 1fr 1.1fr 1fr 1.3fr 1fr 32px; }
+/* Credit-card spends: the Amount is a running entry, not a summed column, so it
+   reads better left-aligned with the other input cells (overrides .money). The
+   Amount is the 3rd cell in each spends row (idle button, editing input, or
+   read-only span). */
+.spends-table .trow > span:nth-child(3) .money { text-align: left; }
 .thead { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; border-bottom-width: 2px; }
 .trow .computed { text-align: right; display: block; }
 /* Read-only money cells inside tables align with the computed columns. */
@@ -369,7 +377,11 @@ html, body {
 .paid-cell input { width: 20px; height: 20px; }
 
 .bills-footer { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.pending-wrap { display: flex; align-items: center; gap: 8px; }
+/* Keep the footer amounts on one line and aligned to a common right edge: the
+   label takes the slack, the value block hugs the right and never wraps. */
+.bills-footer .total-row > span:first-child { flex: 1 1 auto; min-width: 0; }
+.bills-footer .total-row .computed { white-space: nowrap; text-align: right; }
+.pending-wrap { display: inline-flex; align-items: baseline; gap: 8px; flex: 0 0 auto; white-space: nowrap; }
 .count-badge {
   background: #eef1f3; color: var(--muted);
   font-size: 12px; font-weight: 600;
@@ -379,10 +391,14 @@ html, body {
 /* ---- Insights (per-card / per-category share) -------------------------- */
 .insight-row { display: flex; flex-direction: column; gap: 4px; }
 .insight-row.is-highlight { background: #f4f1ff; border-radius: 8px; padding: 6px 8px; margin: -6px -8px; }
-.insight-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.insight-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
 .insight-name.muted { color: var(--muted); font-style: italic; font-weight: 500; }
-.insight-amount { display: inline-flex; align-items: baseline; gap: 8px; }
-.insight-pct { font-size: 12px; color: var(--muted); min-width: 34px; text-align: right; }
+/* Amount + percent share one line and align to common right edges across rows:
+   the amount takes the flexible space (right-aligned), the percent a fixed
+   column. flex-shrink:0 stops the block from collapsing under a long name. */
+.insight-amount { display: inline-flex; align-items: baseline; gap: 8px; flex: 0 0 auto; white-space: nowrap; }
+.insight-amount .computed { text-align: right; }
+.insight-pct { font-size: 12px; color: var(--muted); min-width: 38px; text-align: right; }
 .share-bar { height: 6px; border-radius: 999px; background: #eef1f3; overflow: hidden; margin-top: 4px; }
 .share-bar > span { display: block; height: 100%; background: var(--accent, #7c5cff); border-radius: inherit; }
 
@@ -423,10 +439,12 @@ html, body {
 }
 .legend-item.is-active { background: #f4f1ff; }
 .legend-swatch { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; }
-.legend-name { flex: 0 1 auto; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legend-name { flex: 1 1 auto; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .legend-name.muted { color: var(--muted); font-style: italic; font-weight: 500; }
-.legend-val { display: inline-flex; align-items: baseline; gap: 6px; margin-left: 6px; }
-.legend-pct { font-size: 12px; color: var(--muted); }
+/* Amount + percent stay on one line, pushed to the right edge, aligned across
+   rows (mirrors .insight-amount / .insight-pct). */
+.legend-val { display: inline-flex; align-items: baseline; gap: 8px; margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
+.legend-pct { font-size: 12px; color: var(--muted); min-width: 38px; text-align: right; }
 
 /* Bars sync with the donut's hovered slice. */
 .insight-bars { margin-top: 12px; }
