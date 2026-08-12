@@ -694,11 +694,13 @@ html, body {
      Type/Day and Bank/Amount pairs stranded one-per-full-width-row. */
   .bills-table .trow {
     display: grid;
-    /* Row 1: [Paid checkbox][Date] as one left-aligned unit — the checkbox
-       column sizes to its content (auto) and sits immediately left of Date.
-       Row 2: Name full width. Row 3: Bank | Amount. */
-    grid-template-columns: auto 1fr;
-    gap: 8px 10px;
+    /* Even 2-col grid: Row 1 [Paid][Date], Row 2 Name (full), Row 3 Bank|Amount.
+       Keeping both columns 1fr lets Bank|Amount sit 50/50 on row 3. On row 1 the
+       checkbox sits flush-left in col 1 and the Date input is pulled left with a
+       negative margin (below) so it attaches right next to the checkbox instead
+       of starting at the col-2 edge (~half the row over). */
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 8px;
     padding: 12px 0;
     align-items: start;
   }
@@ -708,6 +710,7 @@ html, body {
      under the DATE label above the date box). */
   .bills-table .trow > .paid-cell {
     order: -1;
+    grid-column: 1;
     justify-content: flex-start;
     align-self: end;
     padding-bottom: 8px; /* sink to the date input's vertical centre */
@@ -715,8 +718,14 @@ html, body {
   .bills-table .trow > .paid-cell::before { content: none; }
   /* Date: rides beside the checkbox, left-aligned, and its native date input
      sizes to its own value (auto) instead of stretching the full track and
-     looking cropped. */
-  .bills-table .trow > span[data-label='Date'] { align-items: flex-start; }
+     looking cropped. It's a col-2 grid item, so pull it left by ~one column
+     (percentage margin resolves against the row width, ≈ the 50% column) minus
+     the checkbox width + gap, so it attaches right next to the checkbox rather
+     than starting at the col-2 edge. */
+  .bills-table .trow > span[data-label='Date'] {
+    align-items: flex-start;
+    margin-left: calc(-50% + 30px);
+  }
   .bills-table .trow > span[data-label='Date'] .cell-input,
   .bills-table .trow > span[data-label='Date'] .cell-display.ro.text {
     width: auto;
