@@ -687,13 +687,32 @@ html, body {
     gap: 6px 10px;
     padding: 12px 0;
   }
-  /* Spends stack two-per-row like the other tables; Notes spans full width. */
+  /* Spends: deterministic card stack with NO overlap. Explicit `order` drives it
+     (cells flow Date, Category, Amount, Notes, [Card], actions in the DOM):
+       Row 1  Date       (full width)
+       Row 2  Category | Amount
+       Row 3  Notes      (full width)
+       Row 4  Card       (full width, only in the "all cards" view)
+     Each cell owns its own grid track, so Date and Category can never ride over
+     each other the way the old side-by-side Date|Category row let them. */
   .spends-table .trow, .spends-table.with-card .trow {
     grid-template-columns: 1fr 1fr;
-    gap: 6px 10px;
+    gap: 8px 10px;
     padding: 12px 0;
+    align-items: start;
   }
-  .spends-table .trow > span[data-label='Notes'] { grid-column: 1 / -1; }
+  .spends-table .trow > span[data-label='Date'] { order: 1; grid-column: 1 / -1; }
+  .spends-table .trow > span[data-label='Category'] { order: 2; grid-column: 1; }
+  .spends-table .trow > span[data-label='Amount'] { order: 3; grid-column: 2; }
+  .spends-table .trow > span[data-label='Notes'] { order: 4; grid-column: 1 / -1; }
+  .spends-table .trow > span[data-label='Card'] { order: 5; grid-column: 1 / -1; }
+  /* Date input sizes to its value and left-aligns within its own full row. */
+  .spends-table .trow > span[data-label='Date'] .cell-input,
+  .spends-table .trow > span[data-label='Date'] .cell-display.ro.text {
+    width: auto;
+    text-align: left;
+    justify-self: start;
+  }
   /* Category spans full width on top of each budget card row. */
   .budget-table .trow > span:nth-child(1) { grid-column: 1 / -1; }
   /* Budget: delete button spans its own full-width row below the numbers. */
