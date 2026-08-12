@@ -486,25 +486,50 @@ export function syncRecurringToFutureMonths(store, opts = {}) {
   return changed ? { ...store, months } : store
 }
 
+// Re-point a month's primary flag at the bank matching `name` (by name), others
+// off. Empty name clears every primary. If no bank matches the name the month is
+// left with no primary — mirrors newMonthFor, which only marks primary on a
+// match. Returns a NEW banks array; the month object is only rebuilt by callers.
+function markPrimaryBank(banks, name) {
+  return (banks || []).map(b => ({ ...b, primary: name ? b.name === name : false }))
+}
+
 // Set the default/primary bank on a store. Pure — returns a new store.
 // Records the choice in settings.defaultBankName (remembered for FUTURE months
 // created via newMonthFor) and marks the matching bank primary on the ACTIVE
-// month only. All OTHER months are returned untouched, so previous months keep
-// whatever primary they already had. Passing an empty name clears the primary
-// flag on the active month and the stored default.
-export function applyDefaultBank(store, name) {
+// month AND every FUTURE month (id strictly greater than the current calendar
+// month), then re-runs syncRecurringToFutureMonths so DEFAULT_BANK-tagged EMI
+// templates re-resolve to the new primary in those future months. PAST months
+// (and the active month, if it is itself in the past) keep whatever primary they
+// already had. Passing an empty name clears the stored default and the primary
+// flag on the active + future months. `today` is injectable for tests.
+export function applyDefaultBank(store, name, opts = {}) {
+  const { today = new Date() } = opts
+  const curId = currentMonthId(today)
   const activeId = store.activeMonthId
-  const cur = store.months[activeId]
-  if (!cur) {
+  const active = store.months[activeId]
+  if (!active) {
     return { ...store, settings: { ...(store.settings || {}), defaultBankName: name } }
   }
-  const banks = (cur.banks || []).map(b => ({
-    ...b,
-    primary: name ? b.name === name : false,
-  }))
-  return {
+
+  // Rebuild the primary flag on the active month (always) and on every future
+  // month, so a DEFAULT_BANK-tagged bill resolves to the new default there too.
+  // Past months are copied by reference (untouched).
+  const months = { ...store.months }
+  months[activeId] = { ...active, banks: markPrimaryBank(active.banks, name) }
+  for (const id of Object.keys(months)) {
+    if (id === activeId) continue
+    if (id <= curId) continue // past (and current) months keep their own primary
+    const m = months[id]
+    months[id] = { ...m, banks: markPrimaryBank(m.banks, name) }
+  }
+
+  const withDefault = {
     ...store,
     settings: { ...(store.settings || {}), defaultBankName: name },
-    months: { ...store.months, [activeId]: { ...cur, banks } },
+    months,
   }
+  // Now that future months point primary at the new default, re-materialize their
+  // template bills/incomes so __default__-tagged EMIs land on the new bank.
+  return syncRecurringToFutureMonths(withDefault, { today })
 }

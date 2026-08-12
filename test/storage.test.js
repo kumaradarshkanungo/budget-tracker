@@ -238,6 +238,96 @@ describe('applyDefaultBank', () => {
   })
 })
 
+describe('applyDefaultBank — future-month propagation', () => {
+  const today = new Date(2026, 7, 15) // August 2026 → currentMonthId '2026-08'
+  // A DEFAULT_BANK-tagged EMI template — its bill should follow the default bank.
+  const templates = [
+    { id: 'rb1', day: 5, name: 'Home Loan', bankName: DEFAULT_BANK, amount: 100000, type: 'manual' },
+  ]
+  // Past (July), active (August), and future (September) months. All have both
+  // banks; IDFC is primary everywhere to start. The future month's EMI is tagged
+  // to whatever bank is primary (DEFAULT_BANK) — so it currently points at IDFC.
+  const makeStore = () => ({
+    activeMonthId: '2026-08',
+    settings: { defaultBankName: 'IDFC', recurringBills: templates, creditCards: [] },
+    months: {
+      '2026-07': {
+        id: '2026-07',
+        banks: [
+          { id: 'j-idfc', name: 'IDFC', actual: 5, primary: true },
+          { id: 'j-hdfc', name: 'HDFC', actual: 6, primary: false },
+        ],
+        bills: [{ id: 'b-jul', date: '2026-07-05', name: 'Home Loan', bankId: 'j-idfc', amount: 100000, paid: false, rbId: 'rb1', amountAuto: true }],
+        holdings: [],
+      },
+      '2026-08': {
+        id: '2026-08',
+        banks: [
+          { id: 'a-idfc', name: 'IDFC', actual: 10, primary: true },
+          { id: 'a-hdfc', name: 'HDFC', actual: 20, primary: false },
+        ],
+        bills: [{ id: 'b-aug', date: '2026-08-05', name: 'Home Loan', bankId: 'a-idfc', amount: 100000, paid: false, rbId: 'rb1', amountAuto: true }],
+        holdings: [],
+      },
+      '2026-09': {
+        id: '2026-09',
+        banks: [
+          { id: 's-idfc', name: 'IDFC', actual: 0, primary: true },
+          { id: 's-hdfc', name: 'HDFC', actual: 0, primary: false },
+        ],
+        bills: [{ id: 'b-sep', date: '2026-09-05', name: 'Home Loan', bankId: 's-idfc', amount: 100000, paid: false, rbId: 'rb1', amountAuto: true }],
+        holdings: [],
+      },
+    },
+  })
+
+  it('marks the new default primary on FUTURE months too', () => {
+    const next = applyDefaultBank(makeStore(), 'HDFC', { today })
+    const sep = next.months['2026-09'].banks
+    expect(sep.find(b => b.name === 'HDFC').primary).toBe(true)
+    expect(sep.find(b => b.name === 'IDFC').primary).toBe(false)
+  })
+
+  it('re-resolves DEFAULT_BANK-tagged future EMIs onto the new default bank', () => {
+    const next = applyDefaultBank(makeStore(), 'HDFC', { today })
+    // September's EMI followed the default: it now points at HDFC (s-hdfc).
+    const sepBill = next.months['2026-09'].bills.find(b => b.rbId === 'rb1')
+    expect(sepBill.bankId).toBe('s-hdfc')
+    // Active month's EMI also re-resolves to the new primary.
+    const augBank = next.months['2026-08'].banks.find(b => b.name === 'HDFC')
+    expect(augBank.primary).toBe(true)
+  })
+
+  it('leaves PAST months (and their EMIs) untouched', () => {
+    const before = makeStore()
+    const julyBefore = before.months['2026-07']
+    const next = applyDefaultBank(before, 'HDFC', { today })
+    expect(next.months['2026-07']).toBe(julyBefore)
+    expect(next.months['2026-07'].banks.find(b => b.name === 'IDFC').primary).toBe(true)
+    expect(next.months['2026-07'].bills[0].bankId).toBe('j-idfc')
+  })
+
+  it('does not mutate the input store', () => {
+    const before = makeStore()
+    applyDefaultBank(before, 'HDFC', { today })
+    expect(before.settings.defaultBankName).toBe('IDFC')
+    expect(before.months['2026-09'].banks.find(b => b.name === 'IDFC').primary).toBe(true)
+    expect(before.months['2026-09'].bills[0].bankId).toBe('s-idfc')
+  })
+
+  it('preserves paid status + manual amounts on future EMIs while re-pointing the bank', () => {
+    const store = makeStore()
+    store.months['2026-09'].bills[0].paid = true
+    store.months['2026-09'].bills[0].amountAuto = false
+    store.months['2026-09'].bills[0].amount = 55555 // manual override
+    const next = applyDefaultBank(store, 'HDFC', { today })
+    const sepBill = next.months['2026-09'].bills.find(b => b.rbId === 'rb1')
+    expect(sepBill.paid).toBe(true)
+    expect(sepBill.amount).toBe(55555)
+    expect(sepBill.bankId).toBe('s-hdfc')
+  })
+})
+
 describe('materializeRecurringBills', () => {
   const banks = [
     { id: 'bank-idfc', name: 'IDFC' },
