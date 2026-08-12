@@ -5,6 +5,7 @@ import { EditModeProvider } from './context/EditModeContext.jsx'
 import { MonthBar } from './components/MonthBar.jsx'
 import { AppHeader } from './components/AppHeader.jsx'
 import { NavDrawer } from './components/NavDrawer.jsx'
+import { SaveFab } from './components/SaveFab.jsx'
 import { Login } from './components/Login.jsx'
 
 // Shared layout: auth gate + header + month bar, with the active route rendered
@@ -66,6 +67,13 @@ export default function App() {
 
       <EditModeProvider editable={editable}>
         <Outlet />
+        {/* Floating Save (exits edit mode) so you can save from anywhere without
+            scrolling to the top. Stacks above the round add-spend FAB, which only
+            appears on the credit-card spends screen (not /credit-cards/insights). */}
+        <SaveFab
+          onExit={() => setEditable(false)}
+          stacked={location.pathname === '/credit-cards'}
+        />
       </EditModeProvider>
 
       <footer className="app-foot">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStoreCtx } from '../context/StoreContext.jsx'
 import { EditModeProvider } from '../context/EditModeContext.jsx'
 import { ManageBills } from '../components/ManageBills.jsx'
+import { SaveFab } from '../components/SaveFab.jsx'
 
 // The "Manage Bills & EMIs" route at "/manage-bills". Read-only by default; a
 // page-level Edit toggle (rendered in the header) unlocks the fields. Edit state
@@ -28,6 +29,8 @@ export function ManageBillsPage() {
         onToggleEdit={() => setEditable(v => !v)}
         onClose={() => navigate('/')}
       />
+      {/* No stacked prop: this page has no add FAB to sit above. */}
+      <SaveFab onExit={() => setEditable(false)} />
     </EditModeProvider>
   )
 }

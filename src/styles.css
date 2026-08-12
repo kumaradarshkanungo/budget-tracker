@@ -23,16 +23,24 @@ html, body {
 
 #root { max-width: 100%; margin: 0 auto; }
 
-.app { padding: 16px 24px; padding-bottom: 40px; }
+.app {
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 24px calc(40px + env(safe-area-inset-bottom, 0px));
+}
 
 /* Top header rendered as a solid card/bar so it reads as a real app header
    rather than loose elements floating on the page background. A faint teal wash
-   echoes the drawer/summary cards without competing with them. */
+   echoes the drawer/summary cards without competing with them.
+   Sticky so "Hi, {name}" stays visible while scrolling; top:0 pins it to the
+   viewport top and the extra top padding clears the iOS notch/status bar. */
 .app-head {
+  position: sticky;
+  top: 0;
+  z-index: 35;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
   margin: 0 0 14px;
   background: linear-gradient(135deg, #d3efe9, #f3fbf9 75%);
   border: 1px solid #b9e0d8;
@@ -490,7 +498,7 @@ html, body {
 
 /* Floating "add spend" button, bottom-right, above the footer. */
 .fab {
-  position: fixed; right: 20px; bottom: 24px; z-index: 45;
+  position: fixed; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 45;
   width: 56px; height: 56px; border-radius: 50%;
   border: none; background: var(--teal); color: #fff;
   font-size: 28px; line-height: 1; cursor: pointer;
@@ -500,6 +508,18 @@ html, body {
 }
 .fab:hover { background: #268376; }
 .fab:active { transform: scale(0.94); }
+
+/* Floating "✓ Save" button shown only in edit mode — a pill (not a round icon)
+   so it reads as a labeled action. Sits above the add-spend FAB on screens that
+   already have one (.fab-stacked). */
+.fab-save {
+  width: auto; height: 48px; padding: 0 20px;
+  border-radius: 999px; font-size: 15px; font-weight: 700; gap: 6px;
+  z-index: 46; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.fab-save.fab-stacked {
+  bottom: calc(24px + 56px + 14px + env(safe-area-inset-bottom, 0px));
+}
 
 /* ---- Modal -------------------------------------------------------------- */
 .modal-backdrop {
@@ -668,45 +688,48 @@ html, body {
   .budget-table .trow > span:nth-child(1) { grid-column: 1 / -1; }
   /* Budget: delete button spans its own full-width row below the numbers. */
   .budget-table .trow > .row-actions { grid-column: 1 / -1; }
-  /* Bills: card layout with the Paid tick at the top-left, above everything. */
+  /* Bills (dashboard): Paid | Date on top, Name full, Bank | Amount, delete.
+     A fixed 2-col grid is deterministic; the old flex-wrap + flex-grow left the
+     Type/Day and Bank/Amount pairs stranded one-per-full-width-row. */
   .bills-table .trow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
     padding: 12px 0;
   }
-  .bills-table .trow > span { flex: 1 1 40%; }
-  .bills-table .trow > span[data-label='Name'] { flex-basis: 100%; }
-  .bills-table .trow > .paid-cell { order: -1; flex-basis: 100%; }
-  .bills-table .paid-cell { justify-content: flex-start; }
-  /* Manage table: stack rows into labeled cards, Name/Card + delete full width. */
+  .bills-table .trow > .paid-cell {
+    order: -1; /* Paid rides to the top-left and pairs with Date */
+    justify-content: flex-start;
+  }
+  .bills-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
+  /* Manage table: Type | Day, Name/Card full, Bank | Amount, delete full. */
   .manage-table .trow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
     padding: 12px 0;
   }
-  .manage-table .trow > span { flex: 1 1 40%; }
   .manage-table .trow > span[data-label='Name'],
-  .manage-table .trow > span[data-label='Card'] { flex-basis: 100%; }
-  .manage-table .trow > .row-actions { flex-basis: 100%; }
+  .manage-table .trow > span[data-label='Card'] { grid-column: 1 / -1; }
+  .manage-table .trow > .row-actions { grid-column: 1 / -1; }
   .manage-table .trow > span[data-label='Amount'] { text-align: left; }
   .manage-table .trow > span[data-label='Amount'] .cell-input.money,
   .manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
-  /* Incomes table: stack rows into labeled cards; Name + delete full width. */
+  /* Incomes table: Name full, Amount | delete. */
   .incomes-table .trow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
     padding: 12px 0;
   }
-  .incomes-table .trow > span { flex: 1 1 40%; }
-  .incomes-table .trow > span[data-label='Name'] { flex-basis: 100%; }
-  .incomes-table .trow > .row-actions { flex-basis: 100%; }
+  .incomes-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
+  .incomes-table .trow > .row-actions { grid-column: 1 / -1; }
   .incomes-table .trow > span[data-label='Amount'] { text-align: left; }
   .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
   .incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
-  .trow > span { display: flex; flex-direction: column; gap: 3px; }
+  /* min-width:0 lets a long read-only name (nowrap) shrink instead of blowing
+     out its 1fr grid track on narrow phones. */
+  .trow > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .trow > span::before {
     content: attr(data-label);
     font-size: 10px; color: var(--muted);
@@ -718,6 +741,9 @@ html, body {
   .trow .computed,
   .trow .cell-display.ro.money { text-align: left; }
   .row-actions { justify-content: flex-start; }
+  /* The full-width delete row in these two tables reads better right-aligned. */
+  .manage-table .trow > .row-actions,
+  .incomes-table .trow > .row-actions { justify-content: flex-end; }
   .trow.total { grid-template-columns: 1fr 1fr; }
   /* Budget total keeps the 3-up money layout; label spans full width on top. */
   .budget-table .trow.total { grid-template-columns: 1fr 1fr 1fr; }
