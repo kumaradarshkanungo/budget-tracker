@@ -546,25 +546,32 @@ html, body {
 .setting-row label { font-size: 13px; color: var(--muted); }
 
 /* Bank management in Settings */
-.bank-manage-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.bank-manage-row { display: flex; align-items: center; gap: 10px; }
+.bank-manage-list { display: flex; flex-direction: column; margin-bottom: 12px; }
+.bank-manage-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.bank-manage-row:last-child { border-bottom: none; }
 .bank-manage-row .bank-name { flex: 1; }
 .add-bank-row { display: flex; gap: 8px; align-items: center; max-width: 480px; }
 .add-bank-row .cell-input { flex: 1; }
 
-/* Repeated bills & EMIs (Settings master data) */
-.recurring-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+/* Repeated bills & EMIs (Settings master data) — always one line per row. */
+.recurring-list { display: flex; flex-direction: column; }
 .recurring-row {
-  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px;
+  display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 6px;
   padding: 10px 0; border-bottom: 1px solid var(--line);
 }
 .recurring-row:last-child { border-bottom: none; }
-.rec-field { display: flex; flex-direction: column; gap: 3px; flex: 1 1 40%; }
-.rec-field[data-label='Day'] { flex: 0 0 70px; }
-.rec-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.rec-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rec-field[data-label='Day'] { flex: 0 0 44px; }
+.rec-field[data-label='Name'] { flex: 1 1 auto; }
+.rec-field[data-label='Bank'] { flex: 1 1 auto; }
+.rec-field[data-label='Amount'] { flex: 0 0 92px; }
+.rec-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
 .rec-actions { flex: 0 0 auto; align-self: center; }
 .recurring-row .cell-input,
-.recurring-row .cell-display { width: 100%; }
+.recurring-row .cell-display { width: 100%; min-width: 0; }
+/* Keep money/text from forcing the row wider than the viewport on phones. */
+.recurring-row .cell-input,
+.recurring-row .cell-display { padding-left: 6px; padding-right: 6px; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Responsive: desktop layout ---------------------------------------- */
 /* Tablet: two columns for the top sections. */
