@@ -79,7 +79,7 @@ export function ManageBills({
         title="Recurring Bills & Incomes"
         actions={
           <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all future months">
-            ⟳ Sync future months
+            ⟳ Sync
           </button>
         }
       >
