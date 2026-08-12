@@ -493,6 +493,14 @@ html, body {
 .icon-btn:hover { background: #f0f2f4; }
 .icon-btn.danger { color: var(--neg); }
 
+/* ---- Swipe-to-delete (mobile only) -------------------------------------- */
+/* On desktop the wrapper is inert: .swipe-fg is display:contents so the wrapped
+   row behaves as a direct child of its .table, and the delete panel is hidden.
+   The gesture markup only activates in the @media (max-width: 640px) block. */
+.swipe-row { position: relative; }
+.swipe-fg { display: contents; }
+.swipe-delete-panel { display: none; }
+
 /* ---- Credit card spends: filter, FAB, empty state ---------------------- */
 .card-filter { width: auto; min-width: 150px; font-weight: 600; }
 
@@ -751,4 +759,40 @@ html, body {
   /* Budget total keeps the 3-up money layout; label spans full width on top. */
   .budget-table .trow.total { grid-template-columns: 1fr 1fr 1fr; }
   .budget-table .trow.total > span:nth-child(1) { grid-column: 1 / -1; }
+
+  /* Swipe-to-delete: the wrapper becomes the card, clipping the foreground as it
+     slides left to reveal the red Delete panel pinned to the right edge. The
+     wrapped .trow is untouched and rides inside .swipe-fg. */
+  .swipe-row {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line);
+  }
+  /* The inner .trow draws its own border-bottom; drop it here so the divider
+     (now on .swipe-row) doesn't double up while the content slides. */
+  .swipe-row > .swipe-fg > .trow { border-bottom: none; }
+  .swipe-fg {
+    display: block; /* overrides the desktop display:contents — becomes the sliding layer */
+    background: var(--card, #fff); /* opaque so the panel is hidden until swiped open */
+    transition: transform 0.18s ease;
+    will-change: transform;
+  }
+  /* No transition while the finger drags — the foreground must track instantly. */
+  .swipe-row.dragging > .swipe-fg { transition: none; }
+  .swipe-delete-panel {
+    display: flex;
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 76px; /* keep in sync with REVEAL in SwipeToDelete.jsx */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 0;
+    background: var(--neg);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
 }

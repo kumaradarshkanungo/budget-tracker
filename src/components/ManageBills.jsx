@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
 import { TextInput, MoneyInput } from './Inputs.jsx'
+import { SwipeToDelete } from './SwipeToDelete.jsx'
 import { DEFAULT_BANK } from '../lib/storage.js'
 
 // "Manage Bills & EMIs" page: the master lists that seed each month — Recurring
@@ -118,7 +119,8 @@ export function ManageBills({
             const isCard = r.type === 'card'
             const cardName = isCard ? (cards.find(c => c.id === r.cardId)?.name || '—') : ''
             return (
-              <div className="trow" key={r.id}>
+              <SwipeToDelete key={r.id} onDelete={() => handleDeleteRecurring(r)} label="Delete">
+              <div className="trow">
                 <span data-label="Type">
                   {editable ? (
                     <select
@@ -209,6 +211,7 @@ export function ManageBills({
                   <IconButton label="Delete recurring bill" variant="danger" onClick={() => handleDeleteRecurring(r)} />
                 </span>
               </div>
+              </SwipeToDelete>
             )
           })}
           {recurringBills.length === 0 && <p className="hint">No recurring bills yet — add one below.</p>}
@@ -235,7 +238,8 @@ export function ManageBills({
             <span />
           </div>
           {recurringIncomes.map(r => (
-            <div className="trow" key={r.id}>
+            <SwipeToDelete key={r.id} onDelete={() => handleDeleteIncome(r)} label="Delete">
+            <div className="trow">
               <span data-label="Name">
                 <TextInput
                   value={r.name}
@@ -250,6 +254,7 @@ export function ManageBills({
                 <IconButton label="Delete recurring income" variant="danger" onClick={() => handleDeleteIncome(r)} />
               </span>
             </div>
+            </SwipeToDelete>
           ))}
           {recurringIncomes.length === 0 && <p className="hint">No recurring incomes yet — add one below.</p>}
         </div>

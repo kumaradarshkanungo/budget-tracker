@@ -2,6 +2,7 @@ import { budgetRow, budgetTotals } from '../lib/calc.js'
 import { uid } from '../lib/storage.js'
 import { Computed, Section, IconButton } from './ui.jsx'
 import { MoneyInput, TextInput } from './Inputs.jsx'
+import { SwipeToDelete } from './SwipeToDelete.jsx'
 
 // Budget — per category: Spend (input), Budget (input), Left = Budget - Spend.
 export function Budget({ month, addRow, updateRow, deleteRow }) {
@@ -28,34 +29,33 @@ export function Budget({ month, addRow, updateRow, deleteRow }) {
         </div>
         {(month.budget || []).map(r => {
           const { left } = budgetRow(r)
+          const removeRow = () => {
+            if (window.confirm(`Delete "${r.category || 'this category'}"?`)) deleteRow('budget', r.id)
+          }
           return (
-            <div className="trow" key={r.id}>
-              <span data-label="Category">
-                <TextInput
-                  value={r.category}
-                  placeholder="Category"
-                  onChange={v => updateRow('budget', r.id, { category: v })}
-                />
-              </span>
-              <span data-label="Spend">
-                <MoneyInput value={r.spend} onChange={v => updateRow('budget', r.id, { spend: v })} />
-              </span>
-              <span data-label="Budget">
-                <MoneyInput value={r.budget} onChange={v => updateRow('budget', r.id, { budget: v })} />
-              </span>
-              <span data-label="Left">
-                <Computed value={left} />
-              </span>
-              <span className="row-actions">
-                <IconButton
-                  label="Delete"
-                  variant="danger"
-                  onClick={() => {
-                    if (window.confirm(`Delete "${r.category || 'this category'}"?`)) deleteRow('budget', r.id)
-                  }}
-                />
-              </span>
-            </div>
+            <SwipeToDelete key={r.id} onDelete={removeRow}>
+              <div className="trow">
+                <span data-label="Category">
+                  <TextInput
+                    value={r.category}
+                    placeholder="Category"
+                    onChange={v => updateRow('budget', r.id, { category: v })}
+                  />
+                </span>
+                <span data-label="Spend">
+                  <MoneyInput value={r.spend} onChange={v => updateRow('budget', r.id, { spend: v })} />
+                </span>
+                <span data-label="Budget">
+                  <MoneyInput value={r.budget} onChange={v => updateRow('budget', r.id, { budget: v })} />
+                </span>
+                <span data-label="Left">
+                  <Computed value={left} />
+                </span>
+                <span className="row-actions">
+                  <IconButton label="Delete" variant="danger" onClick={removeRow} />
+                </span>
+              </div>
+            </SwipeToDelete>
           )
         })}
         <div className="trow total">

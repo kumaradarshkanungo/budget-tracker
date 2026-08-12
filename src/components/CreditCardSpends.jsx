@@ -5,6 +5,7 @@ import { uid, monthStartDate } from '../lib/storage.js'
 import { parseNumber, formatINR } from '../lib/format.js'
 import { Computed, Section, IconButton } from './ui.jsx'
 import { MoneyInput, TextInput } from './Inputs.jsx'
+import { SwipeToDelete } from './SwipeToDelete.jsx'
 import { Modal } from './Modal.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
 
@@ -96,8 +97,15 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
                 {selectedCard ? null : <span>Card</span>}
                 <span />
               </div>
-              {spends.map(s => (
-                <div className="trow" key={s.id}>
+              {spends.map(s => {
+                const removeRow = () => {
+                  if (window.confirm(`Delete this spend${s.notes ? ` "${s.notes}"` : ''} of ${formatINR(s.amount)}?`)) {
+                    deleteRow('creditCards', s.id)
+                  }
+                }
+                return (
+                <SwipeToDelete key={s.id} onDelete={removeRow}>
+                <div className="trow">
                   <span data-label="Date">
                     <TextInput
                       type="date"
@@ -132,18 +140,12 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
                     </span>
                   )}
                   <span className="row-actions">
-                    <IconButton
-                      label="Delete spend"
-                      variant="danger"
-                      onClick={() => {
-                        if (window.confirm(`Delete this spend${s.notes ? ` "${s.notes}"` : ''} of ${formatINR(s.amount)}?`)) {
-                          deleteRow('creditCards', s.id)
-                        }
-                      }}
-                    />
+                    <IconButton label="Delete spend" variant="danger" onClick={removeRow} />
                   </span>
                 </div>
-              ))}
+                </SwipeToDelete>
+                )
+              })}
             </div>
             {spends.length === 0 && (
               <p className="hint">

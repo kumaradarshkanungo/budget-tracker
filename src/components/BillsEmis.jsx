@@ -3,6 +3,7 @@ import { billsTotal, billsPending, billsCount } from '../lib/calc.js'
 import { uid } from '../lib/storage.js'
 import { Computed, Section, IconButton } from './ui.jsx'
 import { MoneyInput, TextInput } from './Inputs.jsx'
+import { SwipeToDelete } from './SwipeToDelete.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
 
 // Small popover menu behind the "＋ Add bill" button: add a blank bill, or a bill
@@ -112,8 +113,13 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
           <span>Paid</span>
           <span />
         </div>
-        {bills.map(b => (
-          <div className={`trow ${b.paid ? 'is-paid' : ''}`} key={b.id}>
+        {bills.map(b => {
+          const removeRow = () => {
+            if (window.confirm(`Delete "${b.name || 'this bill'}"?`)) deleteRow('bills', b.id)
+          }
+          return (
+          <SwipeToDelete key={b.id} onDelete={removeRow}>
+          <div className={`trow ${b.paid ? 'is-paid' : ''}`}>
             <span data-label="Date">
               <TextInput
                 type="date"
@@ -164,16 +170,12 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
               />
             </span>
             <span className="row-actions">
-              <IconButton
-                label="Delete"
-                variant="danger"
-                onClick={() => {
-                  if (window.confirm(`Delete "${b.name || 'this bill'}"?`)) deleteRow('bills', b.id)
-                }}
-              />
+              <IconButton label="Delete" variant="danger" onClick={removeRow} />
             </span>
           </div>
-        ))}
+          </SwipeToDelete>
+          )
+        })}
       </div>
       <div className="bills-footer">
         <div className="row total-row">
