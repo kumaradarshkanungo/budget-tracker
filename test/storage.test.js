@@ -13,6 +13,8 @@ import {
   applyTemplatesToMonth,
   syncRecurringToFutureMonths,
   futureMonthIds,
+  materializeRecurringIncomes,
+  applyIncomesToMonth,
   DEFAULT_BANK,
 } from '../src/lib/storage.js'
 
@@ -69,6 +71,7 @@ describe('normalizeStore', () => {
       creditCards: [],
       spendCategories: [],
       recurringBills: [],
+      recurringIncomes: [],
     })
   })
   it('falls back to a seeded default store when empty', () => {
@@ -85,6 +88,75 @@ describe('normalizeStore', () => {
       expect(m.banks.filter(b => b.primary).map(b => b.name)).toEqual(['IDFC'])
       expect(m.bills).toHaveLength(14)
     }
+  })
+
+  // MIGRATION: the old machine-created "Available" holding (index 0, no riId) is
+  // now derived (Total Bank Balance) and must be dropped — but exactly once, and
+  // never a user's own later "Available" or a post-migration store.
+  it('drops the legacy index-0 "Available" holding from an unmigrated month', () => {
+    const store = {
+      activeMonthId: '2026-08',
+      months: {
+        '2026-08': {
+          id: '2026-08',
+          holdings: [
+            { id: 'h1', label: 'Available', amount: 24233 },
+            { id: 'h2', label: 'Monika', amount: 150000 },
+          ],
+        },
+      },
+    }
+    const holdings = normalizeStore(store).months['2026-08'].holdings
+    expect(holdings.map(h => h.label)).toEqual(['Monika'])
+  })
+
+  it('keeps a user "Available" holding that is not at index 0', () => {
+    const store = {
+      activeMonthId: '2026-08',
+      months: {
+        '2026-08': {
+          id: '2026-08',
+          holdings: [
+            { id: 'h2', label: 'Monika', amount: 150000 },
+            { id: 'h1', label: 'Available', amount: 999 },
+          ],
+        },
+      },
+    }
+    const holdings = normalizeStore(store).months['2026-08'].holdings
+    expect(holdings.map(h => h.label)).toEqual(['Monika', 'Available'])
+  })
+
+  it('does not re-drop once a month is migrated (has riId or excluded flags)', () => {
+    // A migrated month whose FIRST holding is a user "Available" must be preserved.
+    const store = {
+      activeMonthId: '2026-08',
+      months: {
+        '2026-08': {
+          id: '2026-08',
+          holdings: [
+            { id: 'h1', label: 'Available', amount: 500, excluded: false },
+            { id: 'i1', riId: 'ri1', label: 'Salary', amount: 5000, excluded: true },
+          ],
+        },
+      },
+    }
+    const holdings = normalizeStore(store).months['2026-08'].holdings
+    expect(holdings.map(h => h.label)).toEqual(['Available', 'Salary'])
+  })
+
+  it('leaves an income-derived holding at index 0 untouched even if labeled "Available"', () => {
+    const store = {
+      activeMonthId: '2026-08',
+      months: {
+        '2026-08': {
+          id: '2026-08',
+          holdings: [{ id: 'i1', riId: 'ri1', label: 'Available', amount: 5000, excluded: false }],
+        },
+      },
+    }
+    const holdings = normalizeStore(store).months['2026-08'].holdings
+    expect(holdings.map(h => h.label)).toEqual(['Available'])
   })
 })
 
@@ -495,5 +567,141 @@ describe('futureMonthIds', () => {
     expect(futureMonthIds(past, today)).toEqual([])
     expect(futureMonthIds({ months: {} }, today)).toEqual([])
     expect(futureMonthIds({}, today)).toEqual([])
+  })
+})
+
+describe('materializeRecurringIncomes', () => {
+  it('turns income templates into unchecked holdings stamped with riId', () => {
+    const incomes = [
+      { id: 'ri1', name: 'Salary', amount: 50000 },
+      { id: 'ri2', name: 'Rent received', amount: 15000 },
+    ]
+    const holdings = materializeRecurringIncomes(incomes)
+    expect(holdings).toHaveLength(2)
+    expect(holdings[0]).toMatchObject({ riId: 'ri1', label: 'Salary', amount: 50000, excluded: false })
+    expect(holdings[1]).toMatchObject({ riId: 'ri2', label: 'Rent received', amount: 15000, excluded: false })
+    expect(holdings.every(h => typeof h.id === 'string' && h.id)).toBe(true)
+  })
+
+  it('returns an empty array for no/blank incomes', () => {
+    expect(materializeRecurringIncomes([])).toEqual([])
+    expect(materializeRecurringIncomes(undefined)).toEqual([])
+  })
+
+  it('defaults a blank name/amount to empty/0', () => {
+    expect(materializeRecurringIncomes([{ id: 'ri' }])[0]).toMatchObject({ label: '', amount: 0, excluded: false })
+  })
+})
+
+describe('applyIncomesToMonth', () => {
+  const incomes = [
+    { id: 'ri1', name: 'Salary', amount: 50000 },
+    { id: 'ri2', name: 'Rent', amount: 15000 },
+  ]
+
+  it('passes manual (riId-less) holdings through untouched', () => {
+    const month = { holdings: [{ id: 'm1', label: 'Monika', amount: 150000 }] }
+    const out = applyIncomesToMonth(month, [])
+    expect(out).toEqual(month.holdings)
+  })
+
+  it('preserves a matched income holding\'s id and excluded flag, re-deriving label/amount', () => {
+    const month = {
+      holdings: [
+        { id: 'keep', riId: 'ri1', label: 'Old name', amount: 1, excluded: true },
+      ],
+    }
+    const out = applyIncomesToMonth(month, incomes)
+    const salary = out.find(h => h.riId === 'ri1')
+    expect(salary).toMatchObject({ id: 'keep', label: 'Salary', amount: 50000, excluded: true })
+    // The second template materializes fresh, unchecked.
+    const rent = out.find(h => h.riId === 'ri2')
+    expect(rent).toMatchObject({ label: 'Rent', amount: 15000, excluded: false })
+  })
+
+  it('drops an income holding whose template no longer exists, keeping manual ones', () => {
+    const month = {
+      holdings: [
+        { id: 'm1', label: 'Monika', amount: 150000 },
+        { id: 'gone', riId: 'ri-removed', label: 'Old', amount: 100, excluded: false },
+      ],
+    }
+    const out = applyIncomesToMonth(month, incomes)
+    expect(out.some(h => h.riId === 'ri-removed')).toBe(false)
+    expect(out.find(h => h.id === 'm1')).toMatchObject({ label: 'Monika', amount: 150000 })
+    expect(out.filter(h => h.riId).map(h => h.riId).sort()).toEqual(['ri1', 'ri2'])
+  })
+
+  it('returns [manual, ...fromTemplates] with manual first', () => {
+    const month = { holdings: [{ id: 'm1', label: 'Monika', amount: 1 }] }
+    const out = applyIncomesToMonth(month, incomes)
+    expect(out[0].id).toBe('m1')
+    expect(out.slice(1).every(h => h.riId)).toBe(true)
+  })
+})
+
+describe('newMonthFor seeds recurring incomes', () => {
+  const template = { banks: [{ id: 'x', name: 'IDFC', actual: 9, primary: true }], budget: [] }
+
+  it('materializes income holdings (unchecked) and no legacy "Available"', () => {
+    const settings = { defaultBankName: 'IDFC', recurringIncomes: [{ id: 'ri1', name: 'Salary', amount: 50000 }] }
+    const m = newMonthFor('2026-09', template, 'IDFC', settings)
+    expect(m.holdings).toHaveLength(1)
+    expect(m.holdings[0]).toMatchObject({ riId: 'ri1', label: 'Salary', amount: 50000, excluded: false })
+    expect(m.holdings.some(h => h.label === 'Available' && !h.riId)).toBe(false)
+  })
+
+  it('creates no holdings when there are no income templates', () => {
+    expect(newMonthFor('2026-09', template, 'IDFC', { recurringIncomes: [] }).holdings).toEqual([])
+    expect(newMonthFor('2026-09', template, 'IDFC', undefined).holdings).toEqual([])
+  })
+})
+
+describe('syncRecurringToFutureMonths — recurring incomes', () => {
+  const today = new Date(2026, 7, 15) // August 2026 → currentMonthId '2026-08'
+  const incomes = [{ id: 'ri1', name: 'Salary', amount: 50000 }]
+
+  const makeStore = (extra = {}) => ({
+    activeMonthId: '2026-08',
+    settings: { recurringBills: [], recurringIncomes: incomes },
+    months: {
+      '2026-08': {
+        id: '2026-08',
+        banks: [{ id: 'a', name: 'IDFC' }],
+        bills: [],
+        holdings: [{ id: 'aug-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false }],
+      },
+      '2026-09': {
+        id: '2026-09',
+        banks: [{ id: 's', name: 'IDFC' }],
+        bills: [],
+        holdings: [{ id: 'sep-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: true }],
+        ...(extra.sep || {}),
+      },
+    },
+  })
+
+  it('leaves the current month\'s holdings untouched (same reference)', () => {
+    const store = makeStore()
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-08']).toBe(store.months['2026-08'])
+  })
+
+  it('re-derives future-month income holdings from templates, preserving excluded', () => {
+    const store = makeStore()
+    store.settings.recurringIncomes = [{ id: 'ri1', name: 'Monthly Salary', amount: 60000 }]
+    const next = syncRecurringToFutureMonths(store, { today })
+    const h = next.months['2026-09'].holdings.find(x => x.riId === 'ri1')
+    expect(h).toMatchObject({ id: 'sep-i', label: 'Monthly Salary', amount: 60000, excluded: true })
+  })
+
+  it('drops a future income holding when its template is deleted, keeping manual holdings', () => {
+    const store = makeStore({ sep: { holdings: [
+      { id: 'sep-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false },
+      { id: 'sep-m', label: 'Monika', amount: 150000 },
+    ] } })
+    store.settings.recurringIncomes = []
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-09'].holdings.map(h => h.id)).toEqual(['sep-m'])
   })
 })

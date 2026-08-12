@@ -21,6 +21,9 @@ export function ManageBillsPage() {
         updateRecurringBill={s.updateRecurringBill}
         deleteRecurringBill={s.deleteRecurringBill}
         syncRecurringNow={s.syncRecurringNow}
+        addRecurringIncome={s.addRecurringIncome}
+        updateRecurringIncome={s.updateRecurringIncome}
+        deleteRecurringIncome={s.deleteRecurringIncome}
         editable={editable}
         onToggleEdit={() => setEditable(v => !v)}
         onClose={() => navigate('/')}

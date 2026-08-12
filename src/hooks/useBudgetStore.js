@@ -318,6 +318,57 @@ export function useBudgetStore(userId) {
     return count
   }, [])
 
+  // ---- Recurring incomes (global master list in settings) ---------------
+  // Templates hold { id, name, amount } only. Materialized into a month's
+  // holdings when the month is created (newMonthFor); add/update/delete here
+  // also re-syncs them into every already-created FUTURE month
+  // (syncRecurringToFutureMonths), preserving each holding's checked (excluded)
+  // flag and any manual (non-income) holdings. Toggling a holding's checkbox
+  // reuses the generic updateRow('holdings', id, { excluded }).
+  const addRecurringIncome = useCallback((tpl = {}) => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringIncomes: [
+            ...((prev.settings || {}).recurringIncomes || []),
+            { id: uid('ri'), name: '', amount: 0, ...tpl },
+          ],
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
+  }, [])
+
+  const updateRecurringIncome = useCallback((id, patch) => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringIncomes: ((prev.settings || {}).recurringIncomes || []).map(r =>
+            r.id === id ? { ...r, ...patch } : r
+          ),
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
+  }, [])
+
+  const deleteRecurringIncome = useCallback(id => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringIncomes: ((prev.settings || {}).recurringIncomes || []).filter(r => r.id !== id),
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
+  }, [])
+
   // Add a credit-card bill to the ACTIVE month's Bills & EMIs. Its name is the
   // card's name and its amount is prefetched from that card's total spends in the
   // calendar prior month (0 if there's no prior month). Date is left blank for
@@ -407,6 +458,9 @@ export function useBudgetStore(userId) {
     updateRecurringBill,
     deleteRecurringBill,
     syncRecurringNow,
+    addRecurringIncome,
+    updateRecurringIncome,
+    deleteRecurringIncome,
     addCardBill,
     switchMonth,
     addMonth,

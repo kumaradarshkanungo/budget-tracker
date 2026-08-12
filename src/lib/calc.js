@@ -6,8 +6,19 @@ import { monthStartDate, monthEndDate } from './storage.js'
 const num = v => (Number.isFinite(v) ? v : 0)
 
 // --- Total Balance --------------------------------------------------------
+// Sum of every bank's actual balance. Surfaced in Total Balance as the
+// non-editable "Total Bank Balance" row.
+export function totalBankBalance(month) {
+  return (month.banks || []).reduce((s, b) => s + num(b.actual), 0)
+}
+// Total Available = Total Bank Balance + holdings NOT excluded (unchecked). A
+// checked holding is money already reflected in a bank's actual (e.g. a received
+// recurring income), so it's excluded to avoid double counting.
 export function totalAvailable(month) {
-  return (month.holdings || []).reduce((s, h) => s + num(h.amount), 0)
+  const extra = (month.holdings || [])
+    .filter(h => !h.excluded)
+    .reduce((s, h) => s + num(h.amount), 0)
+  return totalBankBalance(month) + extra
 }
 
 // --- Bills & EMIs ---------------------------------------------------------

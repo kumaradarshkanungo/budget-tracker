@@ -3,14 +3,15 @@ import { Section, IconButton } from './ui.jsx'
 import { TextInput, MoneyInput } from './Inputs.jsx'
 import { DEFAULT_BANK } from '../lib/storage.js'
 
-// "Manage Bills & EMIs" page: the master list of repeated bills & EMIs that seed
-// each month's Bills & EMIs. Set the day, name/card, bank and amount once; the
-// year and month are filled in automatically. Type "Credit card" names the bill
-// after a card and prefetches its amount from the previous month's card spends.
-// Editing a template here re-syncs it into every already-created FUTURE month
-// (preserving paid status and manually-entered amounts); the current and past
-// months are left unchanged. Read-only by default; a page-level Edit toggle
-// (rendered in the header) unlocks the fields.
+// "Manage Bills & EMIs" page: the master lists that seed each month — Recurring
+// Bills & EMIs (loans, EMIs, SIPs, card payments) and Recurring Incomes (salary,
+// rent received, etc.). Both live in one "Recurring Bills & Incomes" section with
+// a single ⟳ Sync future months button. Set a bill's day/name/bank/amount once
+// (year+month are filled in automatically); a recurring income needs only a name
+// and amount. Editing a template here re-syncs it into every already-created
+// FUTURE month — bills preserve paid status and manually-entered amounts; incomes
+// preserve their checked (received) flag; the current and past months are left
+// unchanged. Read-only by default; a page-level Edit toggle unlocks the fields.
 export function ManageBills({
   month,
   settings,
@@ -18,6 +19,9 @@ export function ManageBills({
   updateRecurringBill,
   deleteRecurringBill,
   syncRecurringNow,
+  addRecurringIncome,
+  updateRecurringIncome,
+  deleteRecurringIncome,
   editable,
   onToggleEdit,
   onClose,
@@ -30,13 +34,16 @@ export function ManageBills({
   // sync confirmation so it doesn't imply the edit was included in that message.
   const editTemplate = (id, patch) => { setSyncMsg(''); updateRecurringBill(id, patch) }
   const addTemplate = () => { setSyncMsg(''); addRecurringBill() }
-  // Show repeated bills ordered by day-of-month (ascending); templates without a
+  const editIncome = (id, patch) => { setSyncMsg(''); updateRecurringIncome(id, patch) }
+  const addIncome = () => { setSyncMsg(''); addRecurringIncome() }
+  // Show recurring bills ordered by day-of-month (ascending); templates without a
   // day sort last. Sorting a copy keeps the stored order untouched.
   const dayOf = r => {
     const d = Number(r.day)
     return Number.isFinite(d) && d > 0 ? d : Infinity
   }
   const recurringBills = [...(settings.recurringBills || [])].sort((a, b) => dayOf(a) - dayOf(b))
+  const recurringIncomes = settings.recurringIncomes || []
 
   function handleSync() {
     const n = syncRecurringNow ? syncRecurringNow() : 0
@@ -44,9 +51,16 @@ export function ManageBills({
   }
 
   function handleDeleteRecurring(r) {
-    if (window.confirm(`Delete repeated bill "${r.name || 'Unnamed'}"? It will be removed from future months. Current and past months are unaffected.`)) {
+    if (window.confirm(`Delete recurring bill "${r.name || 'Unnamed'}"? It will be removed from future months. Current and past months are unaffected.`)) {
       setSyncMsg('')
       deleteRecurringBill(r.id)
+    }
+  }
+
+  function handleDeleteIncome(r) {
+    if (window.confirm(`Delete recurring income "${r.name || 'Unnamed'}"? It will be removed from future months. Current and past months are unaffected.`)) {
+      setSyncMsg('')
+      deleteRecurringIncome(r.id)
     }
   }
 
@@ -67,7 +81,7 @@ export function ManageBills({
       </div>
 
       <Section
-        title="Repeated Bills & EMIs"
+        title="Recurring Bills & Incomes"
         actions={
           <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all future months">
             ⟳ Sync future months
@@ -75,16 +89,21 @@ export function ManageBills({
         }
       >
         <p className="hint section-intro">
+          Bills and incomes that repeat every month. Changes here update
+          <strong> future months automatically</strong>; the current and past months are left unchanged.
+          Use <strong>⟳ Sync future months</strong> to re-apply everything now — handy after editing
+          credit-card spends that feed card-type bill amounts. Your paid marks, manually edited bill
+          amounts, and received-income ticks are always preserved.
+        </p>
+        {syncMsg && <p className="sync-msg" role="status">{syncMsg}</p>}
+
+        <h3 className="mb-subhead">Recurring Bills &amp; EMIs</h3>
+        <p className="hint">
           Bills that repeat every month (loans, EMIs, SIPs). Set the <strong>day</strong>, name, bank
           and amount once — the year and month are filled in automatically. Set <strong>Type</strong> to
           <strong> Credit card</strong> to name the bill after a card and prefetch its amount from the
-          previous month's card spends (still editable). Changes here update
-          <strong> future months automatically</strong>; the current and past months are left unchanged.
-          Use <strong>⟳ Sync future months</strong> to re-apply these templates now — handy after
-          editing credit-card spends that feed card-type bill amounts. Your paid marks and manually
-          edited amounts are always preserved.
+          previous month's card spends (still editable).
         </p>
-        {syncMsg && <p className="sync-msg" role="status">{syncMsg}</p>}
 
         <div className="table manage-table">
           <div className="thead">
@@ -187,17 +206,57 @@ export function ManageBills({
                   />
                 </span>
                 <span className="row-actions">
-                  <IconButton label="Delete repeated bill" variant="danger" onClick={() => handleDeleteRecurring(r)} />
+                  <IconButton label="Delete recurring bill" variant="danger" onClick={() => handleDeleteRecurring(r)} />
                 </span>
               </div>
             )
           })}
-          {recurringBills.length === 0 && <p className="hint">No repeated bills yet — add one below.</p>}
+          {recurringBills.length === 0 && <p className="hint">No recurring bills yet — add one below.</p>}
         </div>
 
         {editable && (
           <div className="add-bank-row">
-            <button className="mb-btn" onClick={() => addTemplate()}>＋ Add repeated bill</button>
+            <button className="mb-btn" onClick={() => addTemplate()}>＋ Add recurring bill</button>
+          </div>
+        )}
+
+        <h3 className="mb-subhead">Recurring Incomes</h3>
+        <p className="hint">
+          Incomes that arrive every month (salary, rent received). Each shows up as an entry in that
+          month's <strong>Total Balance</strong>, unticked — counted in Total Available as money yet to
+          receive. Once it lands, add it to the relevant <strong>bank's actual balance</strong> and then
+          <strong> tick it</strong> in Total Balance so it isn't counted twice.
+        </p>
+
+        <div className="table incomes-table">
+          <div className="thead">
+            <span>Name</span>
+            <span>Amount</span>
+            <span />
+          </div>
+          {recurringIncomes.map(r => (
+            <div className="trow" key={r.id}>
+              <span data-label="Name">
+                <TextInput
+                  value={r.name}
+                  placeholder="Name"
+                  onChange={v => editIncome(r.id, { name: v })}
+                />
+              </span>
+              <span data-label="Amount">
+                <MoneyInput value={r.amount} onChange={v => editIncome(r.id, { amount: v })} />
+              </span>
+              <span className="row-actions">
+                <IconButton label="Delete recurring income" variant="danger" onClick={() => handleDeleteIncome(r)} />
+              </span>
+            </div>
+          ))}
+          {recurringIncomes.length === 0 && <p className="hint">No recurring incomes yet — add one below.</p>}
+        </div>
+
+        {editable && (
+          <div className="add-bank-row">
+            <button className="mb-btn" onClick={() => addIncome()}>＋ Add recurring income</button>
           </div>
         )}
       </Section>

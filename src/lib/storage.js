@@ -110,7 +110,6 @@ function seedMonth() {
   return {
     id: '2026-08',
     holdings: [
-      { id: uid('h'), label: 'Available', amount: 24233 },
       { id: uid('h'), label: 'Monika', amount: 150000 },
     ],
     banks: [
@@ -124,8 +123,7 @@ function seedMonth() {
       { id: uid('bg'), category: 'Cuttack House', spend: 5000, budget: 10000 },
     ],
     bills: [
-      { id: uid('b'), date: '2026-08-01', name: 'Suman', bankId: IDFC, amount: 39703, paid: true },
-      { id: uid('b'), date: '2026-08-01', name: 'IDFC Credit', bankId: IDFC, amount: 712, paid: true },
+      { id: uid('b'), date: '2026-08-01', name: 'Suman', bankId: IDFC, amount: 39703, paid: true },      { id: uid('b'), date: '2026-08-01', name: 'IDFC Credit', bankId: IDFC, amount: 712, paid: true },
       { id: uid('b'), date: '2026-08-01', name: 'Kotak Loan', bankId: IDFC, amount: 37500, paid: true },
       { id: uid('b'), date: '2026-08-02', name: 'SBI Loan', bankId: IDFC, amount: 27000, paid: true },
       { id: uid('b'), date: '2026-06-05', name: 'Satya Loan', bankId: IDFC, amount: 13045, paid: true },
@@ -148,15 +146,30 @@ export function defaultStore() {
   return {
     activeMonthId: m.id,
     months: { [m.id]: m },
-    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [] },
+    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [] },
   }
 }
 
 // Normalize any loaded store so older/partial documents get the new fields.
 export function normalizeStore(store) {
   if (!store || !store.months || !Object.keys(store.months).length) return defaultStore()
-  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], ...(store.settings || {}) }
-  return { ...store, settings }
+  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], ...(store.settings || {}) }
+  // MIGRATION: the old computed "Available" holding is now derived (Total Bank
+  // Balance = sum of bank actuals) and no longer stored. Drop it — but ONLY from
+  // an UNMIGRATED month, and only the machine-created row (index 0, no riId,
+  // label 'Available'). A month is "migrated" once any holding carries riId or
+  // an `excluded` flag, so this runs at most once and never deletes a user's
+  // own later "Available" holding.
+  const months = {}
+  for (const [id, m] of Object.entries(store.months)) {
+    const holdings = m.holdings || []
+    const migrated = holdings.some(h => h.riId || 'excluded' in h)
+    const cleaned = migrated
+      ? holdings
+      : holdings.filter((h, i) => !(i === 0 && !h.riId && h.label === 'Available'))
+    months[id] = { ...m, holdings: cleaned }
+  }
+  return { ...store, settings, months }
 }
 
 export function loadStore() {
@@ -231,11 +244,27 @@ export function materializeRecurringBills(monthId, recurringBills, banks, opts =
   })
 }
 
+// Turn the global recurring-income templates into concrete holdings for a month.
+// Each template holds only { id, name, amount }. Materialized holdings carry an
+// riId (provenance, mirrors bills' rbId) and start UNCHECKED (excluded:false) —
+// money yet to be received, so it counts toward Total Available until the user
+// checks it (received into a bank).
+export function materializeRecurringIncomes(incomes) {
+  return (incomes || []).map(tpl => ({
+    id: uid('h'),
+    riId: tpl.id,
+    label: tpl.name || '',
+    amount: tpl.amount || 0,
+    excluded: false,
+  }))
+}
+
 // Build a fresh month for the given "YYYY-MM" id. Carries over bank names and
 // budget categories from a template month (amounts zeroed). Marks the settings
 // default bank as primary if present, else keeps the template's primary. Seeds
 // the month's bills from the global recurring-bill templates in settings —
-// credit-card templates prefetch their amount from prevMonth's card spends.
+// credit-card templates prefetch their amount from prevMonth's card spends — and
+// its holdings from the global recurring-income templates (each unchecked).
 export function newMonthFor(monthId, template, defaultBankName, settings, prevMonth) {
   let banks = (template?.banks || []).map(b => ({ ...b, id: uid('bank'), actual: 0 }))
   const budget = (template?.budget || []).map(b => ({ ...b, id: uid('bg'), spend: 0 }))
@@ -248,7 +277,7 @@ export function newMonthFor(monthId, template, defaultBankName, settings, prevMo
   }
   return {
     id: monthId,
-    holdings: [{ id: uid('h'), label: 'Available', amount: 0 }],
+    holdings: materializeRecurringIncomes(settings?.recurringIncomes || []),
     banks,
     budget,
     bills: materializeRecurringBills(monthId, settings?.recurringBills || [], banks, {
@@ -329,15 +358,47 @@ export function applyTemplatesToMonth(month, recurringBills, opts = {}) {
   return [...manual, ...fromTemplates]
 }
 
-// Propagate the current recurring-bill templates to every FUTURE month — those
+// Re-derive one month's income-derived holdings from the recurring-income
+// templates, PRESERVING user state. Pure — returns a NEW holdings array.
+//
+// - Holdings WITHOUT an riId are manual → passed through untouched (the same
+//   back-compat safety key as bills' rbId-less rows).
+// - Each template yields exactly one holding. A surviving match (same riId)
+//   keeps its stable id and its `excluded` (checked) flag; label and amount are
+//   always re-derived from the template (templates own the amount — there is no
+//   per-month amount override for incomes).
+// - Income holdings whose template no longer exists are dropped.
+export function applyIncomesToMonth(month, incomes) {
+  const templates = incomes || []
+  const tplIds = new Set(templates.map(t => t.id))
+  const existing = month?.holdings || []
+  const manual = existing.filter(h => !h.riId)
+  const byRi = new Map(existing.filter(h => h.riId && tplIds.has(h.riId)).map(h => [h.riId, h]))
+  const fromTemplates = templates.map(tpl => {
+    const prev = byRi.get(tpl.id)
+    return {
+      id: prev?.id || uid('h'),
+      riId: tpl.id,
+      label: tpl.name || '',
+      amount: tpl.amount || 0,
+      excluded: prev ? !!prev.excluded : false,
+    }
+  })
+  return [...manual, ...fromTemplates]
+}
+
+// Propagate the current recurring-bill AND recurring-income templates to every
 // whose id is strictly greater than the current calendar month. Pure — returns a
 // NEW store (or the same reference if nothing changed). `today` is injectable for
 // tests. prevMonth is read from the ORIGINAL store so iteration order is
 // irrelevant (card amounts derive from spends, which this function never edits).
+// Bills preserve paid + manual amounts; income holdings preserve their checked
+// (excluded) flag; manual holdings are left untouched.
 export function syncRecurringToFutureMonths(store, opts = {}) {
   const { today = new Date() } = opts
   const cur = currentMonthId(today)
   const templates = store.settings?.recurringBills || []
+  const incomes = store.settings?.recurringIncomes || []
   const cards = store.settings?.creditCards || []
   const months = { ...store.months }
   let changed = false
@@ -345,7 +406,11 @@ export function syncRecurringToFutureMonths(store, opts = {}) {
     if (id <= cur) continue // future = strictly greater than the current month
     const m = months[id]
     const prevMonth = store.months[prevMonthId(id)] || null
-    months[id] = { ...m, bills: applyTemplatesToMonth(m, templates, { cards, prevMonth }) }
+    months[id] = {
+      ...m,
+      bills: applyTemplatesToMonth(m, templates, { cards, prevMonth }),
+      holdings: applyIncomesToMonth(m, incomes),
+    }
     changed = true
   }
   return changed ? { ...store, months } : store

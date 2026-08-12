@@ -283,6 +283,14 @@ html, body {
 /* Insights bar rows: name takes the slack and truncates, so the amount+pct
    block stays put on the right and never wraps. */
 .row.two > .insight-name { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* Total Balance holding rows: a checkbox + label group takes the slack on the
+   left, the amount (+ delete) stays on the right. The label/input inside still
+   flexes so long names truncate rather than push the amount off-row. */
+.holding-label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.holding-label > input[type='checkbox'] { flex: none; width: 16px; height: 16px; cursor: pointer; }
+.holding-label > .cell-input, .holding-label > .cell-display.ro { flex: 1; min-width: 0; }
+/* The computed "Total Bank Balance" row has no checkbox; keep its label flexing. */
+.row.two.holding-computed > .cell-display.ro:first-child { flex: 1; min-width: 0; }
 .row-end { display: flex; align-items: center; gap: 6px; }
 /* Rows with a divider between each entry (e.g. Total Balance holdings), matching
    the Budget table's per-row separator. */
@@ -596,6 +604,19 @@ html, body {
 .manage-table .trow > span[data-label='Amount'] .cell-input.money,
 .manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: right; }
 
+/* Sub-heading separating the two lists inside the combined "Recurring Bills &
+   Incomes" section. */
+.mb-subhead { margin: 22px 0 6px; font-size: 15px; font-weight: 700; }
+.mb-subhead:first-of-type { margin-top: 8px; }
+/* Recurring Incomes manager — Name | Amount | delete. Amount right-aligned like
+   every other money cell in the app. */
+.incomes-table .thead, .incomes-table .trow { grid-template-columns: 1.6fr 1fr 32px; }
+.incomes-table .trow .cell-input,
+.incomes-table .trow .cell-display { width: 100%; min-width: 0; }
+.incomes-table .trow > span[data-label='Amount'] { text-align: right; }
+.incomes-table .trow > span[data-label='Amount'] .cell-input.money,
+.incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: right; }
+
 /* Bills & EMIs "＋ Add bill" popover menu (blank bill / from credit card). */
 .add-bill-menu { position: relative; display: inline-flex; }
 .add-bill-pop {
@@ -672,6 +693,19 @@ html, body {
   .manage-table .trow > span[data-label='Amount'] { text-align: left; }
   .manage-table .trow > span[data-label='Amount'] .cell-input.money,
   .manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
+  /* Incomes table: stack rows into labeled cards; Name + delete full width. */
+  .incomes-table .trow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 12px 0;
+  }
+  .incomes-table .trow > span { flex: 1 1 40%; }
+  .incomes-table .trow > span[data-label='Name'] { flex-basis: 100%; }
+  .incomes-table .trow > .row-actions { flex-basis: 100%; }
+  .incomes-table .trow > span[data-label='Amount'] { text-align: left; }
+  .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
+  .incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
   .trow > span { display: flex; flex-direction: column; gap: 3px; }
   .trow > span::before {
     content: attr(data-label);

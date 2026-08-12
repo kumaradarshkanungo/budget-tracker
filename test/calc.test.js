@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   totalAvailable,
+  totalBankBalance,
   billsTotal,
   billsPending,
   billsCount,
@@ -24,7 +25,6 @@ const CASH = 'cash'
 const month = {
   id: '2026-08',
   holdings: [
-    { id: 'h1', label: 'Available', amount: 24233 },
     { id: 'h2', label: 'Monika', amount: 150000 },
   ],
   banks: [
@@ -56,8 +56,26 @@ const month = {
 }
 
 describe('Total Balance', () => {
-  it('sums holdings into Total Available (174,233)', () => {
+  it('Total Bank Balance = sum of bank actuals (24,233)', () => {
+    expect(totalBankBalance(month)).toBe(24233)
+  })
+  it('Total Available = Total Bank Balance + unchecked holdings (174,233)', () => {
+    // 24233 (banks) + 150000 (Monika, not excluded)
     expect(totalAvailable(month)).toBe(174233)
+  })
+  it('excludes checked (excluded) holdings from Total Available', () => {
+    const withChecked = { ...month, holdings: [{ id: 'h2', label: 'Monika', amount: 150000, excluded: true }] }
+    expect(totalAvailable(withChecked)).toBe(24233) // only the bank balance remains
+  })
+  it('counts an unchecked income-derived holding, drops it once checked', () => {
+    const base = { ...month, holdings: [{ id: 'i1', riId: 'ri1', label: 'Salary', amount: 5000, excluded: false }] }
+    expect(totalAvailable(base)).toBe(24233 + 5000)
+    const received = { ...base, holdings: [{ ...base.holdings[0], excluded: true }] }
+    expect(totalAvailable(received)).toBe(24233)
+  })
+  it('Total Bank Balance is 0 when there are no banks', () => {
+    expect(totalBankBalance({ id: '2026-09' })).toBe(0)
+    expect(totalAvailable({ id: '2026-09', holdings: [{ id: 'h', amount: 500 }] })).toBe(500)
   })
 })
 
