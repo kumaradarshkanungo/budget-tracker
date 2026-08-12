@@ -773,12 +773,17 @@ html, body {
   .swipe-row > .swipe-fg > .trow { border-bottom: none; }
   .swipe-fg {
     display: block; /* overrides the desktop display:contents — becomes the sliding layer */
+    position: relative;
+    z-index: 1; /* paints above the panel so the panel is hidden until slid away */
     background: var(--card, #fff); /* opaque so the panel is hidden until swiped open */
     transition: transform 0.18s ease;
     will-change: transform;
+    /* Browser owns vertical scroll; the handler owns horizontal (and calls
+       preventDefault once the swipe is locked horizontal). */
+    touch-action: pan-y;
   }
   /* No transition while the finger drags — the foreground must track instantly. */
-  .swipe-row.dragging > .swipe-fg { transition: none; }
+  .swipe-fg.dragging { transition: none; }
   .swipe-delete-panel {
     display: flex;
     position: absolute;
@@ -794,5 +799,48 @@ html, body {
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
+    /* Not tappable until the row is open, so a stray tap on a closed row can
+       never hit the (hidden, behind-fg) panel. Enabled below when .is-open. */
+    pointer-events: none;
+  }
+  .swipe-row.is-open .swipe-delete-panel { pointer-events: auto; }
+
+  /* On mobile the swipe gesture replaces the edit-mode trash button in these 5
+     card tables, so hide .row-actions entirely (desktop keeps it — no swipe
+     there). This also drops the full-width delete row that manage/incomes add. */
+  .bills-table .trow > .row-actions,
+  .budget-table .trow > .row-actions,
+  .spends-table .trow > .row-actions,
+  .manage-table .trow > .row-actions,
+  .incomes-table .trow > .row-actions { display: none; }
+
+  /* ---- Manage Bills & EMIs page (mobile): smaller type + each recurring row
+     rendered as its own distinct card ------------------------------------- */
+  .settings-page .manage-table,
+  .settings-page .incomes-table { font-size: 13px; }
+  .settings-page .manage-table .cell-input,
+  .settings-page .manage-table .cell-display,
+  .settings-page .incomes-table .cell-input,
+  .settings-page .incomes-table .cell-display { font-size: 13px; }
+  .settings-page .mb-subhead { font-size: 14px; }
+  .settings-page .manage-table .trow > span::before,
+  .settings-page .incomes-table .trow > span::before { font-size: 9px; }
+
+  /* Turn each swipe-wrapped recurring row into an individual card: rounded,
+     bordered, gapped — instead of divider-separated rows. overflow:hidden on
+     .swipe-row already clips the sliding fg + red panel to the rounded corners. */
+  .settings-page .manage-table .swipe-row,
+  .settings-page .incomes-table .swipe-row {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow);
+  }
+  .settings-page .manage-table .swipe-row > .swipe-fg > .trow,
+  .settings-page .incomes-table .swipe-row > .swipe-fg > .trow {
+    padding: 10px 12px;
   }
 }
+
+
+
