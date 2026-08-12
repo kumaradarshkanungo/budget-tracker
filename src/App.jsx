@@ -71,6 +71,12 @@ export default function App() {
   // month. Hide it on Settings and any other route.
   const showMonthBar = location.pathname === '/' || location.pathname.startsWith('/credit-cards')
 
+  // The round "add spend" FAB renders only on the credit-card spends screen; the
+  // "✓ Save" pill renders in edit mode on any page. Both are position:fixed, so
+  // reserve matching bottom scroll clearance (below) via classes on the .app root
+  // so the last rows can scroll clear instead of hiding behind the buttons.
+  const hasAddFab = location.pathname === '/credit-cards'
+
   // Auth is only enforced when Supabase is configured.
   if (auth.configured) {
     if (auth.loading) {
@@ -82,7 +88,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${hasAddFab ? ' has-add-fab' : ''}${editable ? ' is-editing' : ''}`}>
       <AppHeader
         auth={auth}
         onNavigate={navigate}

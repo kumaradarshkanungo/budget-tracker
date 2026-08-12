@@ -27,6 +27,15 @@ html, body {
   padding: calc(16px + env(safe-area-inset-top, 0px)) 24px calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Fixed FABs paint over content, so reserve extra bottom scroll clearance when
+   they're present (classes set from App.jsx) — otherwise the last rows hide
+   behind the buttons. Add FAB reaches ~80px; the "Save" pill stacked above it
+   reaches ~142px; the Save pill alone reaches ~72px. Pad past the tallest case
+   in play, plus breathing room. env() is already covered by the .app base pad. */
+.app.has-add-fab { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.app.has-add-fab.is-editing { padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+.app.is-editing:not(.has-add-fab) { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+
 /* Top header rendered as a solid bar spanning the full viewport width, pinned
    flush to the very top. Negative margins cancel the .app container padding
    (top + 24px sides) so it reads edge-to-edge rather than an inset rounded card.
