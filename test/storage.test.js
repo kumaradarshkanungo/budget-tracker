@@ -12,6 +12,7 @@ import {
   currentMonthId,
   applyTemplatesToMonth,
   syncRecurringToFutureMonths,
+  futureMonthIds,
 } from '../src/lib/storage.js'
 
 describe('month date derivation', () => {
@@ -435,5 +436,28 @@ describe('applyTemplatesToMonth — back-compat with rbId-less bills', () => {
   it('returns manual bills untouched when there are no templates', () => {
     const bills = applyTemplatesToMonth(month, [], {})
     expect(bills).toEqual(month.bills)
+  })
+})
+
+describe('futureMonthIds', () => {
+  const today = new Date(2026, 7, 15) // August 2026 → currentMonthId '2026-08'
+  const store = {
+    months: {
+      '2026-06': { id: '2026-06' },
+      '2026-08': { id: '2026-08' }, // current — not future
+      '2026-09': { id: '2026-09' },
+      '2026-12': { id: '2026-12' },
+    },
+  }
+
+  it('returns only months strictly after the current calendar month', () => {
+    expect(futureMonthIds(store, today).sort()).toEqual(['2026-09', '2026-12'])
+  })
+
+  it('returns an empty array when no month is in the future', () => {
+    const past = { months: { '2026-06': {}, '2026-07': {}, '2026-08': {} } }
+    expect(futureMonthIds(past, today)).toEqual([])
+    expect(futureMonthIds({ months: {} }, today)).toEqual([])
+    expect(futureMonthIds({}, today)).toEqual([])
   })
 })

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
 import { TextInput, MoneyInput } from './Inputs.jsx'
 
@@ -15,6 +16,7 @@ export function ManageBills({
   addRecurringBill,
   updateRecurringBill,
   deleteRecurringBill,
+  syncRecurringNow,
   editable,
   onToggleEdit,
   onClose,
@@ -22,6 +24,11 @@ export function ManageBills({
   const banks = month?.banks || []
   const bankNames = Array.from(new Set(banks.map(b => b.name).filter(Boolean)))
   const cards = settings.creditCards || []
+  const [syncMsg, setSyncMsg] = useState('')
+  // Editing a template already re-syncs future months on its own; clear any stale
+  // sync confirmation so it doesn't imply the edit was included in that message.
+  const editTemplate = (id, patch) => { setSyncMsg(''); updateRecurringBill(id, patch) }
+  const addTemplate = () => { setSyncMsg(''); addRecurringBill() }
   // Show repeated bills ordered by day-of-month (ascending); templates without a
   // day sort last. Sorting a copy keeps the stored order untouched.
   const dayOf = r => {
@@ -30,8 +37,14 @@ export function ManageBills({
   }
   const recurringBills = [...(settings.recurringBills || [])].sort((a, b) => dayOf(a) - dayOf(b))
 
+  function handleSync() {
+    const n = syncRecurringNow ? syncRecurringNow() : 0
+    setSyncMsg(n ? `✓ Synced ${n} future month${n === 1 ? '' : 's'}` : 'No future months to sync')
+  }
+
   function handleDeleteRecurring(r) {
     if (window.confirm(`Delete repeated bill "${r.name || 'Unnamed'}"? It will be removed from future months. Current and past months are unaffected.`)) {
+      setSyncMsg('')
       deleteRecurringBill(r.id)
     }
   }
@@ -41,6 +54,9 @@ export function ManageBills({
       <div className="settings-head">
         <h2>Manage Bills &amp; EMIs</h2>
         <div className="settings-head-actions">
+          <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all future months">
+            ⟳ Sync future months
+          </button>
           <button
             className={`mb-btn ${editable ? 'primary' : ''}`}
             aria-pressed={editable}
@@ -59,7 +75,11 @@ export function ManageBills({
           <strong> Credit card</strong> to name the bill after a card and prefetch its amount from the
           previous month's card spends (still editable). Changes here update
           <strong> future months automatically</strong>; the current and past months are left unchanged.
+          Use <strong>⟳ Sync future months</strong> to re-apply these templates now — handy after
+          editing credit-card spends that feed card-type bill amounts. Your paid marks and manually
+          edited amounts are always preserved.
         </p>
+        {syncMsg && <p className="sync-msg" role="status">{syncMsg}</p>}
 
         <div className="table manage-table">
           <div className="thead">
@@ -80,7 +100,7 @@ export function ManageBills({
                     <select
                       className="cell-input"
                       value={r.type || 'manual'}
-                      onChange={e => updateRecurringBill(r.id, { type: e.target.value })}
+                      onChange={e => editTemplate(r.id, { type: e.target.value })}
                     >
                       <option value="manual">Manual</option>
                       <option value="card">Credit card</option>
@@ -94,7 +114,7 @@ export function ManageBills({
                     <select
                       className="cell-input"
                       value={r.day || ''}
-                      onChange={e => updateRecurringBill(r.id, { day: e.target.value })}
+                      onChange={e => editTemplate(r.id, { day: e.target.value })}
                     >
                       <option value="">—</option>
                       {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
@@ -113,7 +133,7 @@ export function ManageBills({
                       <select
                         className="cell-input"
                         value={r.cardId || ''}
-                        onChange={e => updateRecurringBill(r.id, { cardId: e.target.value })}
+                        onChange={e => editTemplate(r.id, { cardId: e.target.value })}
                       >
                         <option value="">—</option>
                         {cards.map(c => (
@@ -129,7 +149,7 @@ export function ManageBills({
                     <TextInput
                       value={r.name}
                       placeholder="Name"
-                      onChange={v => updateRecurringBill(r.id, { name: v })}
+                      onChange={v => editTemplate(r.id, { name: v })}
                     />
                   )}
                 </span>
@@ -138,7 +158,7 @@ export function ManageBills({
                     <select
                       className="cell-input"
                       value={r.bankName || ''}
-                      onChange={e => updateRecurringBill(r.id, { bankName: e.target.value })}
+                      onChange={e => editTemplate(r.id, { bankName: e.target.value })}
                     >
                       <option value="">—</option>
                       {bankNames.map(n => (
@@ -155,7 +175,7 @@ export function ManageBills({
                   <MoneyInput
                     value={r.amount}
                     placeholder={isCard ? 'Bill amount' : ''}
-                    onChange={v => updateRecurringBill(r.id, { amount: v })}
+                    onChange={v => editTemplate(r.id, { amount: v })}
                   />
                 </span>
                 <span className="row-actions">
@@ -169,7 +189,7 @@ export function ManageBills({
 
         {editable && (
           <div className="add-bank-row">
-            <button className="mb-btn" onClick={() => addRecurringBill()}>＋ Add repeated bill</button>
+            <button className="mb-btn" onClick={() => addTemplate()}>＋ Add repeated bill</button>
           </div>
         )}
       </Section>

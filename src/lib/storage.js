@@ -58,6 +58,15 @@ export function currentMonthId(today = new Date()) {
   return `${y}-${String(m).padStart(2, '0')}`
 }
 
+// Ids of the store's FUTURE months — those strictly after the current calendar
+// month (the same set syncRecurringToFutureMonths re-syncs). `today` is
+// injectable for deterministic tests. Used to report how many months a manual
+// sync will touch.
+export function futureMonthIds(store, today = new Date()) {
+  const cur = currentMonthId(today)
+  return Object.keys(store?.months || {}).filter(id => id > cur)
+}
+
 // Sum of a given card's spends in a month. Inlined here (rather than importing
 // creditCardTotal from calc.js) because calc.js imports from this module, so the
 // reverse import would create a cycle. Mirrors creditCardTotal(month, cardId).

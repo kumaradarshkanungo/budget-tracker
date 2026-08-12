@@ -334,6 +334,12 @@ html, body {
 /* Intro help text at the top of a settings section: sit flush to the top but
    leave a small gap before the fields/list below it. */
 .hint.section-intro { margin: 0 0 12px; }
+/* Transient confirmation after a manual "Sync future months" — reads distinctly
+   from the grey intro hint above it. */
+.sync-msg {
+  margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--teal);
+  background: #e6f4f1; border: 1px solid #bfe3dc; border-radius: 8px; padding: 8px 10px;
+}
 
 /* ---- Bank cards --------------------------------------------------------- */
 .bank-list { display: flex; flex-direction: column; gap: 10px; }

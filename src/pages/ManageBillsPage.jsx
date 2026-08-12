@@ -20,6 +20,7 @@ export function ManageBillsPage() {
         addRecurringBill={s.addRecurringBill}
         updateRecurringBill={s.updateRecurringBill}
         deleteRecurringBill={s.deleteRecurringBill}
+        syncRecurringNow={s.syncRecurringNow}
         editable={editable}
         onToggleEdit={() => setEditable(v => !v)}
         onClose={() => navigate('/')}

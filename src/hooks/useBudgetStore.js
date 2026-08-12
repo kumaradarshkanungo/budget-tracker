@@ -8,6 +8,7 @@ import {
   applyDefaultBank,
   prevMonthId,
   syncRecurringToFutureMonths,
+  futureMonthIds,
   uid,
 } from '../lib/storage.js'
 import { creditCardTotal } from '../lib/calc.js'
@@ -305,6 +306,18 @@ export function useBudgetStore(userId) {
     })
   }, [])
 
+  // Manually re-apply the current templates to every FUTURE month on demand
+  // (the same sync that runs automatically on template edits). Useful after
+  // editing credit-card SPENDS — which feed card-type bill amounts but don't
+  // themselves trigger a sync — or to refresh months created before auto-sync
+  // existed. Preserves paid status and manually-entered amounts. Returns the
+  // number of future months affected so the UI can confirm the action.
+  const syncRecurringNow = useCallback(() => {
+    const count = futureMonthIds(storeRef.current).length
+    setStore(prev => syncRecurringToFutureMonths(prev))
+    return count
+  }, [])
+
   // Add a credit-card bill to the ACTIVE month's Bills & EMIs. Its name is the
   // card's name and its amount is prefetched from that card's total spends in the
   // calendar prior month (0 if there's no prior month). Date is left blank for
@@ -393,6 +406,7 @@ export function useBudgetStore(userId) {
     addRecurringBill,
     updateRecurringBill,
     deleteRecurringBill,
+    syncRecurringNow,
     addCardBill,
     switchMonth,
     addMonth,
