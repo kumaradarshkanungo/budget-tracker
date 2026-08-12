@@ -12,7 +12,7 @@ import { monthlyInsights } from '../lib/calc.js'
 import { formatINR } from '../lib/format.js'
 import { Computed, Section } from './ui.jsx'
 
-// Fixed palette cycled by group index for chart slices, legend swatches, and bars.
+// Fixed palette cycled by group index for chart slices and bars.
 const COLORS = ['#7c5cff', '#2f9e8f', '#e8a13a', '#d64577', '#3a86e8', '#54b06e', '#b0653a', '#9b59b6']
 const colorAt = i => COLORS[i % COLORS.length]
 
@@ -56,31 +56,16 @@ export function CreditCardInsights({ month, settings }) {
   )
 }
 
-// One breakdown section: interactive donut + legend (side by side), a total
-// row, and labeled bars below. `groups` items expose name/amount/percent/count/deleted.
+// One breakdown section: interactive donut, a total row, and labeled bars below
+// (category · amount · percent · bar). `groups` items expose
+// name/amount/percent/count/deleted. The donut and bar rows stay hover-synced
+// via `active`/`setActive`.
 function Breakdown({ title, groups, total, keyOf }) {
   const [active, setActive] = useState(-1)
   return (
     <Section title={title} accent="#7c5cff">
       <div className="insights-grid">
         <DonutChart groups={groups} active={active} setActive={setActive} label={title} />
-        <ul className="legend">
-          {groups.map((g, i) => (
-            <li
-              className={`legend-item ${active === i ? 'is-active' : ''}`}
-              key={keyOf(g)}
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(-1)}
-            >
-              <span className="legend-swatch" style={{ background: colorAt(i) }} />
-              <span className={`legend-name ${g.deleted ? 'muted' : ''}`}>{g.name}</span>
-              <span className="legend-val">
-                <Computed value={g.amount} />
-                <span className="legend-pct">{Math.round(g.percent)}%</span>
-              </span>
-            </li>
-          ))}
-        </ul>
       </div>
       <div className="row total-row insight-total">
         <span>Total</span>

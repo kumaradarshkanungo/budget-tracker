@@ -27,11 +27,11 @@ html, body {
   padding: calc(16px + env(safe-area-inset-top, 0px)) 24px calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Top header rendered as a solid card/bar so it reads as a real app header
-   rather than loose elements floating on the page background. A faint teal wash
-   echoes the drawer/summary cards without competing with them.
-   Sticky so "Hi, {name}" stays visible while scrolling; top:0 pins it to the
-   viewport top and the extra top padding clears the iOS notch/status bar. */
+/* Top header rendered as a solid bar spanning the full viewport width, pinned
+   flush to the very top. Negative margins cancel the .app container padding
+   (top + 24px sides) so it reads edge-to-edge rather than an inset rounded card.
+   Sticky keeps it in flow; on mobile it slides out of view on scroll-down (via
+   the .is-hidden class toggled from App.jsx) and returns on scroll-up. */
 .app-head {
   position: sticky;
   top: 0;
@@ -39,14 +39,20 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 16px;
   padding-top: calc(10px + env(safe-area-inset-top, 0px));
-  margin: 0 0 14px;
+  margin: calc(-16px - env(safe-area-inset-top, 0px)) -24px 14px;
   background: linear-gradient(135deg, #d3efe9, #f3fbf9 75%);
   border: 1px solid #b9e0d8;
-  border-radius: var(--radius);
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
   box-shadow: var(--shadow);
+  transition: transform 0.25s ease;
 }
+/* Mobile scroll-away: slide the whole header up out of view. Its own top padding
+   (notch clearance) travels with it, so nothing peeks below the status bar. */
+.app-head.is-hidden { transform: translateY(-100%); }
 .greeting {
   font-size: 16px;
   font-weight: 600;
@@ -422,18 +428,18 @@ html, body {
 .insight-amount .computed { text-align: right; }
 .insight-pct { font-size: 12px; color: var(--muted); min-width: 38px; text-align: right; }
 /* The Total row reuses .insight-amount (amount + an empty pct-width spacer) so
-   its number lands in the same amount column as the bar/legend rows below,
+   its number lands in the same amount column as the bar rows below,
    instead of hanging flush against the section's right edge. */
 .insight-total > span:first-child { flex: 1 1 auto; min-width: 0; }
 .share-bar { height: 6px; border-radius: 999px; background: #eef1f3; overflow: hidden; margin-top: 4px; }
 .share-bar > span { display: block; height: 100%; background: var(--accent, #7c5cff); border-radius: inherit; }
 
-/* ---- Insights page: chart + legend ------------------------------------- */
+/* ---- Insights page: donut chart + labeled bars ------------------------- */
 /* Sections stack with a gap, mirroring .settings-page. */
 .insights-page { display: flex; flex-direction: column; gap: 14px; }
 .insights-page .settings-head { margin-bottom: 0; }
 .insights-grid {
-  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;
   margin-bottom: 4px;
 }
 
@@ -455,22 +461,6 @@ html, body {
 }
 .chart-tooltip-name { font-weight: 600; }
 .chart-tooltip-val { color: var(--muted); }
-
-/* Legend: swatch · name · amount kept close together for readability. */
-.legend { flex: 1 1 220px; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.legend-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 6px; border-radius: 8px; cursor: default;
-  transition: background 0.12s ease;
-}
-.legend-item.is-active { background: #f4f1ff; }
-.legend-swatch { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; }
-.legend-name { flex: 1 1 auto; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.legend-name.muted { color: var(--muted); font-style: italic; font-weight: 500; }
-/* Amount + percent stay on one line, pushed to the right edge, aligned across
-   rows (mirrors .insight-amount / .insight-pct). */
-.legend-val { display: inline-flex; align-items: baseline; gap: 8px; margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
-.legend-pct { font-size: 12px; color: var(--muted); min-width: 38px; text-align: right; }
 
 /* Bars sync with the donut's hovered slice. */
 .insight-bars { margin-top: 12px; }
@@ -624,6 +614,9 @@ html, body {
    reusing the shared .thead/.trow pattern. Columns: Type | Day | Name/Card |
    Bank | Amount | delete. Type is widened so "Credit card" never truncates. */
 .manage-table .thead, .manage-table .trow { grid-template-columns: 1fr 64px 1.6fr 1.2fr 1fr 32px; }
+/* Breathing room between the list's description (.hint) and its first row/card. */
+.settings-page .manage-table,
+.settings-page .incomes-table { margin-top: 12px; }
 .manage-table .trow .cell-input,
 .manage-table .trow .cell-display { width: 100%; min-width: 0; }
 /* Amount right-aligns to match the app's money convention (matches the read-only
@@ -776,6 +769,10 @@ html, body {
     position: relative;
     z-index: 1; /* paints above the panel so the panel is hidden until slid away */
     background: var(--card, #fff); /* opaque so the panel is hidden until swiped open */
+    /* Clip cell content to the card's own edges: as the foreground slides left,
+       long unbroken text (names/notes/amounts) is cut at the card's right edge
+       instead of bleeding over and painting on top of the red Delete panel. */
+    overflow: hidden;
     transition: transform 0.18s ease;
     will-change: transform;
     /* Browser owns vertical scroll; the handler owns horizontal (and calls
@@ -814,6 +811,15 @@ html, body {
   .manage-table .trow > .row-actions,
   .incomes-table .trow > .row-actions { display: none; }
 
+  /* Read-only text cells inside a swipe card are nowrap; give them ellipsis so a
+     long name/notes value truncates cleanly at the cell edge (backed by the
+     .swipe-fg overflow:hidden clip) rather than a hard mid-glyph cut. */
+  .swipe-row .trow .cell-display.ro.text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
   /* ---- Manage Bills & EMIs page (mobile): smaller type + each recurring row
      rendered as its own distinct card ------------------------------------- */
   .settings-page .manage-table,
@@ -838,6 +844,20 @@ html, body {
   }
   .settings-page .manage-table .swipe-row > .swipe-fg > .trow,
   .settings-page .incomes-table .swipe-row > .swipe-fg > .trow {
+    padding: 10px 12px;
+  }
+
+  /* ---- Monthly Overview → Bills & EMIs (mobile): each bill rendered as its own
+     distinct card, matching the Manage Bills & EMIs treatment. The full border +
+     margin replace the divider, so the base .swipe-row border-bottom is subsumed
+     by the `border` shorthand below (no double line). ------------------------- */
+  .bills-table .swipe-row {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow);
+  }
+  .bills-table .swipe-row > .swipe-fg > .trow {
     padding: 10px 12px;
   }
 }

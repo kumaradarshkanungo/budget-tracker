@@ -3,7 +3,7 @@ import { ProfileMenu } from './ProfileMenu.jsx'
 // Top app header: hamburger (opens the nav drawer) + greeting + profile menu.
 // The profile menu (avatar → sign out) only appears when signed in; in
 // local-only mode we show a generic greeting and no account controls.
-export function AppHeader({ auth, onNavigate, onToggleMenu }) {
+export function AppHeader({ auth, onNavigate, onToggleMenu, hidden = false }) {
   const user = auth?.user
   const meta = user?.user_metadata || {}
   // Prefer the full name (incl. middle name); fall back to email local-part.
@@ -11,7 +11,7 @@ export function AppHeader({ auth, onNavigate, onToggleMenu }) {
   const signedIn = auth?.configured && !!user
 
   return (
-    <header className="app-head">
+    <header className={`app-head ${hidden ? 'is-hidden' : ''}`}>
       <button
         type="button"
         className="hamburger-btn"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useStoreCtx } from './context/StoreContext.jsx'
 import { EditModeProvider } from './context/EditModeContext.jsx'
@@ -7,6 +7,47 @@ import { AppHeader } from './components/AppHeader.jsx'
 import { NavDrawer } from './components/NavDrawer.jsx'
 import { SaveFab } from './components/SaveFab.jsx'
 import { Login } from './components/Login.jsx'
+
+// Mobile-only "hide on scroll down, reveal on scroll up" for the sticky header.
+// Returns a boolean the header uses to slide itself out of view. Desktop
+// (>640px) never hides — the header stays pinned as before.
+function useHideOnScroll() {
+  const [hidden, setHidden] = useState(false)
+  const lastY = useRef(0)
+  const ticking = useRef(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const THRESHOLD = 56 // ~header height: don't hide until scrolled past it
+
+    function update() {
+      ticking.current = false
+      if (!mq.matches) {
+        setHidden(false)
+        return
+      }
+      const y = window.scrollY
+      const goingDown = y > lastY.current
+      // Hide when scrolling down past the header; reveal on any upward scroll or
+      // near the very top.
+      if (goingDown && y > THRESHOLD) setHidden(true)
+      else if (!goingDown) setHidden(false)
+      lastY.current = y
+    }
+    function onScroll() {
+      if (!ticking.current) {
+        ticking.current = true
+        window.requestAnimationFrame(update)
+      }
+    }
+    lastY.current = window.scrollY
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  return hidden
+}
+
 
 // Shared layout: auth gate + header + month bar, with the active route rendered
 // in <Outlet>. Store and auth come from the shared context.
@@ -17,6 +58,7 @@ export default function App() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editable, setEditable] = useState(false) // page starts read-only
+  const headerHidden = useHideOnScroll()
 
   // Edit mode is page-local: reset to read-only whenever the route changes so
   // toggling Edit on one page never carries over after navigating away.
@@ -45,6 +87,7 @@ export default function App() {
         auth={auth}
         onNavigate={navigate}
         onToggleMenu={() => setMenuOpen(true)}
+        hidden={headerHidden}
       />
       <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={navigate} auth={auth} />
 
