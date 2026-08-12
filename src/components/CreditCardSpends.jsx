@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { creditCardTotal } from '../lib/calc.js'
 import { uid, monthStartDate } from '../lib/storage.js'
-import { parseNumber } from '../lib/format.js'
+import { parseNumber, formatINR } from '../lib/format.js'
 import { Computed, Section, IconButton } from './ui.jsx'
 import { MoneyInput, TextInput } from './Inputs.jsx'
 import { Modal } from './Modal.jsx'
@@ -135,7 +135,11 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
                     <IconButton
                       label="Delete spend"
                       variant="danger"
-                      onClick={() => deleteRow('creditCards', s.id)}
+                      onClick={() => {
+                        if (window.confirm(`Delete this spend${s.notes ? ` "${s.notes}"` : ''} of ${formatINR(s.amount)}?`)) {
+                          deleteRow('creditCards', s.id)
+                        }
+                      }}
                     />
                   </span>
                 </div>

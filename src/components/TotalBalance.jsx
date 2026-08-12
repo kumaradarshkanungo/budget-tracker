@@ -61,7 +61,13 @@ export function TotalBalance({ month, addRow, updateRow, deleteRow }) {
                 <MoneyInput value={h.amount} onChange={v => updateRow('holdings', h.id, { amount: v })} />
               )}
               {!h.riId && (
-                <IconButton label="Delete" variant="danger" onClick={() => deleteRow('holdings', h.id)} />
+                <IconButton
+                  label="Delete"
+                  variant="danger"
+                  onClick={() => {
+                    if (window.confirm(`Delete "${h.label || 'this holding'}"?`)) deleteRow('holdings', h.id)
+                  }}
+                />
               )}
             </div>
           </div>

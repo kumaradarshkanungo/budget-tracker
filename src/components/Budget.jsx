@@ -47,7 +47,13 @@ export function Budget({ month, addRow, updateRow, deleteRow }) {
                 <Computed value={left} />
               </span>
               <span className="row-actions">
-                <IconButton label="Delete" variant="danger" onClick={() => deleteRow('budget', r.id)} />
+                <IconButton
+                  label="Delete"
+                  variant="danger"
+                  onClick={() => {
+                    if (window.confirm(`Delete "${r.category || 'this category'}"?`)) deleteRow('budget', r.id)
+                  }}
+                />
               </span>
             </div>
           )

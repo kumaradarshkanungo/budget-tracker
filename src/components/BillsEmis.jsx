@@ -164,7 +164,13 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
               />
             </span>
             <span className="row-actions">
-              <IconButton label="Delete" variant="danger" onClick={() => deleteRow('bills', b.id)} />
+              <IconButton
+                label="Delete"
+                variant="danger"
+                onClick={() => {
+                  if (window.confirm(`Delete "${b.name || 'this bill'}"?`)) deleteRow('bills', b.id)
+                }}
+              />
             </span>
           </div>
         ))}
