@@ -501,8 +501,12 @@ html, body {
 /* Card filter is a compact icon button that opens a popover option list on tap
    (no visible <select> — just the options). */
 .card-filter-menu {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
-  min-width: 180px; padding: 6px; background: var(--card);
+  /* position/top/left set inline via createPortal(document.body) + JS rect measure.
+     z-index sits above the modal stack (backdrop 60) since it is now a <body> child. */
+  z-index: 70;
+  min-width: 180px; /* keep in sync with MENU_WIDTH in CreditCardSpends.jsx */
+  max-width: calc(100vw - 16px); /* backstop: 2 * VIEWPORT_PAD, so long names can't defeat the clamp */
+  padding: 6px; background: var(--card);
   border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
   display: flex; flex-direction: column; gap: 2px;
 }
