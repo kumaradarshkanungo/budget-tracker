@@ -499,6 +499,16 @@ html, body {
 
 /* ---- Credit card spends: filter, FAB, empty state ---------------------- */
 .card-filter { width: auto; min-width: 150px; font-weight: 600; }
+/* Card filter is a compact icon button that reveals the dropdown on tap. */
+.filter-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.filter-btn:hover { background: var(--line); }
+/* Active (a specific card is selected) — tint with the teal accent. */
+.filter-btn.is-active { color: #fff; background: var(--teal); border-color: var(--teal); }
 
 /* ---- Floating action button (app-wide) ---------------------------------- */
 /* One FAB per page, bottom-right. The round toggle keeps the classic .fab look;
@@ -549,6 +559,8 @@ html, body {
 .fab-action-edit { background: #2f6fed; }
 .fab-action-save { background: var(--teal); }
 .fab-action-cancel { background: #e5484d; }
+.fab-action-secondary { background: #f59e0b; }
+.fab-action-secondary svg { width: 22px; height: 22px; }
 
 /* Full-screen scrim so a tap outside the open menu closes it. Below the menu,
    above page content and the round add/insights buttons. */

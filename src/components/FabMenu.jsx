@@ -13,7 +13,7 @@ import { usePageActions } from '../context/PageActionsContext.jsx'
 // scrim tap, Escape, or route change. Mirrors the Escape-listener pattern in
 // Modal/NavDrawer.
 export function FabMenu({ editable, onToggleEdit, onSave, onCancel }) {
-  const { action } = usePageActions()
+  const { action, secondary } = usePageActions()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const firstActionRef = useRef(null)
@@ -62,6 +62,18 @@ export function FabMenu({ editable, onToggleEdit, onSave, onCancel }) {
               ＋
             </button>
           )}
+          {secondary && (
+            <button
+              type="button"
+              className="fab-action fab-action-secondary"
+              role="menuitem"
+              aria-label={secondary.label}
+              title={secondary.label}
+              onClick={() => run(secondary.onRun)}
+            >
+              {secondary.glyph}
+            </button>
+          )}
           {editable ? (
             <>
               <button
@@ -83,7 +95,7 @@ export function FabMenu({ editable, onToggleEdit, onSave, onCancel }) {
                 title="Save"
                 onClick={() => run(onSave)}
               >
-                ✓
+                💾
               </button>
             </>
           ) : (

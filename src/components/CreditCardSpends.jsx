@@ -8,7 +8,7 @@ import { MoneyInput, TextInput } from './Inputs.jsx'
 import { SwipeToDelete } from './SwipeToDelete.jsx'
 import { Modal } from './Modal.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
-import { useRegisterPageAction } from '../context/PageActionsContext.jsx'
+import { useRegisterPageAction, useRegisterSecondaryAction } from '../context/PageActionsContext.jsx'
 
 const emptyDraft = () => ({ cardId: '', categoryId: '', date: '', amount: '', notes: '' })
 
@@ -22,6 +22,7 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   const categories = [...(settings.spendCategories || [])].sort((a, b) => a.name.localeCompare(b.name))
 
   const [selectedCard, setSelectedCard] = useState('') // '' = all cards
+  const [filterOpen, setFilterOpen] = useState(false) // card-filter dropdown visibility
   const [modalOpen, setModalOpen] = useState(false)
   const [draft, setDraft] = useState(emptyDraft)
 
@@ -37,6 +38,9 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   }, [selectedCard, cards, month.id])
   // Register this page's primary add action so the app-wide FAB shows "＋ Add spend".
   useRegisterPageAction(openModal, '＋ Add spend', [openModal])
+  // Register the insights view as the FAB's secondary action (📊 icon).
+  const goInsights = useCallback(() => navigate('/credit-cards/insights'), [navigate])
+  useRegisterSecondaryAction(goInsights, 'View insights', '📊', [goInsights])
   function closeModal() {
     setModalOpen(false)
   }
@@ -64,24 +68,33 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
           cards.length > 0 && (
             <div className="spends-actions">
               <button
-                className="mb-btn"
-                onClick={() => navigate('/credit-cards/insights')}
-              >
-                📊 View insights
-              </button>
-              <select
-                className="cell-input card-filter"
-                value={selectedCard}
-                onChange={e => setSelectedCard(e.target.value)}
+                type="button"
+                className={`filter-btn ${selectedCard ? 'is-active' : ''}`}
                 aria-label="Filter by card"
+                aria-expanded={filterOpen}
+                title={selectedCard ? cardName(selectedCard) : 'Filter by card'}
+                onClick={() => setFilterOpen(o => !o)}
               >
-                <option value="">All cards</option>
-                {cards.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+                </svg>
+              </button>
+              {filterOpen && (
+                <select
+                  className="cell-input card-filter"
+                  value={selectedCard}
+                  onChange={e => setSelectedCard(e.target.value)}
+                  aria-label="Filter by card"
+                  autoFocus
+                >
+                  <option value="">All cards</option>
+                  {cards.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )
         }
