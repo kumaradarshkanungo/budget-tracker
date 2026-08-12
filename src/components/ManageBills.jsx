@@ -54,9 +54,6 @@ export function ManageBills({
       <div className="settings-head">
         <h2>Manage Bills &amp; EMIs</h2>
         <div className="settings-head-actions">
-          <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all future months">
-            ⟳ Sync future months
-          </button>
           <button
             className={`mb-btn ${editable ? 'primary' : ''}`}
             aria-pressed={editable}
@@ -68,7 +65,14 @@ export function ManageBills({
         </div>
       </div>
 
-      <Section title="Repeated Bills & EMIs">
+      <Section
+        title="Repeated Bills & EMIs"
+        actions={
+          <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all future months">
+            ⟳ Sync future months
+          </button>
+        }
+      >
         <p className="hint section-intro">
           Bills that repeat every month (loans, EMIs, SIPs). Set the <strong>day</strong>, name, bank
           and amount once — the year and month are filled in automatically. Set <strong>Type</strong> to
