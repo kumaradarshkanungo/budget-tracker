@@ -718,13 +718,13 @@ html, body {
   .bills-table .trow > .paid-cell::before { content: none; }
   /* Date: rides beside the checkbox, left-aligned, and its native date input
      sizes to its own value (auto) instead of stretching the full track and
-     looking cropped. It's a col-2 grid item, so pull it left by ~one column
-     (percentage margin resolves against the row width, ≈ the 50% column) minus
-     the checkbox width + gap, so it attaches right next to the checkbox rather
-     than starting at the col-2 edge. */
+     looking cropped. It's a col-2 grid item; a grid item's percentage margin
+     resolves against its own column width, so pull it one full column left
+     (-100%) plus the checkbox width + gap (~28px) so its input attaches right
+     next to the checkbox rather than starting at the col-2 edge. */
   .bills-table .trow > span[data-label='Date'] {
     align-items: flex-start;
-    margin-left: calc(-50% + 30px);
+    margin-left: calc(-100% + 28px);
   }
   .bills-table .trow > span[data-label='Date'] .cell-input,
   .bills-table .trow > span[data-label='Date'] .cell-display.ro.text {
