@@ -698,53 +698,35 @@ html, body {
   .budget-table .trow > span:nth-child(1) { grid-column: 1 / -1; }
   /* Budget: delete button spans its own full-width row below the numbers. */
   .budget-table .trow > .row-actions { grid-column: 1 / -1; }
-  /* Bills (dashboard): Paid | Date on top, Name full, Bank | Amount, delete.
-     A fixed 2-col grid is deterministic; the old flex-wrap + flex-grow left the
-     Type/Day and Bank/Amount pairs stranded one-per-full-width-row. */
+  /* Bills (dashboard): clean, deterministic 2-col card layout with NO negative
+     margins (the old margin-left:calc(-100%+28px) pull made the Date input ride
+     over its neighbour). Explicit `order` drives the stack instead:
+       Row 1  Name   (full width)
+       Row 2  Date | Amount
+       Row 3  Bank | Paid
+     Each cell owns its own grid track, so nothing overlaps. */
   .bills-table .trow {
     display: grid;
-    /* Even 2-col grid: Row 1 [Paid][Date], Row 2 Name (full), Row 3 Bank|Amount.
-       Keeping both columns 1fr lets Bank|Amount sit 50/50 on row 3. On row 1 the
-       checkbox sits flush-left in col 1 and the Date input is pulled left with a
-       negative margin (below) so it attaches right next to the checkbox instead
-       of starting at the col-2 edge (~half the row over). */
     grid-template-columns: 1fr 1fr;
-    gap: 8px 8px;
+    gap: 8px 10px;
     padding: 12px 0;
     align-items: start;
   }
-  /* Paid: first cell of row 1, checkbox flush-left, attached to Date's left.
-     Drop its "PAID" label so the checkbox aligns cleanly beside the date input
-     as a single control; align it to the input's baseline (bottom of the cell,
-     under the DATE label above the date box). */
-  .bills-table .trow > .paid-cell {
-    order: -1;
-    grid-column: 1;
-    justify-content: flex-start;
-    align-self: end;
-    padding-bottom: 8px; /* sink to the date input's vertical centre */
-  }
-  .bills-table .trow > .paid-cell::before { content: none; }
-  /* Date: rides beside the checkbox, left-aligned, and its native date input
-     sizes to its own value (auto) instead of stretching the full track and
-     looking cropped. It's a col-2 grid item; a grid item's percentage margin
-     resolves against its own column width, so pull it one full column left
-     (-100%) plus the checkbox width + gap (~28px) so its input attaches right
-     next to the checkbox rather than starting at the col-2 edge. */
-  .bills-table .trow > span[data-label='Date'] {
-    align-items: flex-start;
-    margin-left: calc(-100% + 28px);
-  }
+  .bills-table .trow > span[data-label='Name'] { order: 1; grid-column: 1 / -1; }
+  .bills-table .trow > span[data-label='Date'] { order: 2; grid-column: 1; }
+  .bills-table .trow > span[data-label='Amount'] { order: 3; grid-column: 2; }
+  .bills-table .trow > span[data-label='Bank'] { order: 4; grid-column: 1; }
+  .bills-table .trow > .paid-cell { order: 5; grid-column: 2; }
+  /* Date input sizes to its own value and left-aligns within its own track. */
   .bills-table .trow > span[data-label='Date'] .cell-input,
   .bills-table .trow > span[data-label='Date'] .cell-display.ro.text {
     width: auto;
     text-align: left;
     justify-self: start;
   }
-  .bills-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
-  /* Bank | Amount share the last row evenly. */
-  .bills-table .trow > span[data-label='Bank'],
-  .bills-table .trow > span[data-label='Amount'] { grid-column: span 1; }
+  /* Paid keeps its "PAID" label (restored) and sits as a normal cell in col 2,
+     the checkbox flush-left under the label like the other fields. */
+  .bills-table .trow > .paid-cell { justify-content: flex-start; align-items: flex-start; }
   /* Manage table: Type | Day, Name/Card full, Bank | Amount, delete full. */
   .manage-table .trow {
     display: grid;
