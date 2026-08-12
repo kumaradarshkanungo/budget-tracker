@@ -83,22 +83,9 @@ export function ManageBills({
           </button>
         }
       >
-        <p className="hint section-intro">
-          Bills and incomes that repeat every month. Changes here update
-          <strong> future months automatically</strong>; the current and past months are left unchanged.
-          Use <strong>⟳ Sync future months</strong> to re-apply everything now — handy after editing
-          credit-card spends that feed card-type bill amounts. Your paid marks, manually edited bill
-          amounts, and received-income ticks are always preserved.
-        </p>
         {syncMsg && <p className="sync-msg" role="status">{syncMsg}</p>}
 
         <h3 className="mb-subhead">Recurring Bills &amp; EMIs</h3>
-        <p className="hint">
-          Bills that repeat every month (loans, EMIs, SIPs). Set the <strong>day</strong>, name, bank
-          and amount once — the year and month are filled in automatically. Set <strong>Type</strong> to
-          <strong> Credit card</strong> to name the bill after a card and prefetch its amount from the
-          previous month's card spends (still editable).
-        </p>
 
         <div className="table manage-table">
           <div className="thead">
@@ -218,12 +205,6 @@ export function ManageBills({
         )}
 
         <h3 className="mb-subhead">Recurring Incomes</h3>
-        <p className="hint">
-          Incomes that arrive every month (salary, rent received). Each shows up as an entry in that
-          month's <strong>Total Balance</strong>, unticked — counted in Total Available as money yet to
-          receive. Once it lands, add it to the relevant <strong>bank's actual balance</strong> and then
-          <strong> tick it</strong> in Total Balance so it isn't counted twice.
-        </p>
 
         <div className="table incomes-table">
           <div className="thead">
