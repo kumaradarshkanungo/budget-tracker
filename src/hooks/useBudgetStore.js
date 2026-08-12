@@ -4,6 +4,8 @@ import {
   saveStore,
   newMonthFor,
   normalizeStore,
+  selectStore,
+  mergeStore,
   labelForMonthId,
   applyDefaultBank,
   prevMonthId,
@@ -427,10 +429,23 @@ export function useBudgetStore(userId) {
 
   // ---- Backup: export / import JSON --------------------------------------
   const exportJSON = useCallback(() => JSON.stringify(store, null, 2), [store])
+  // Selective export: filter to chosen months / data groups / global settings.
+  // `selection` = { monthIds, perMonthKeys, includeGlobal }; omitted fields
+  // default to "everything" (see selectStore).
+  const exportSelectionJSON = useCallback(
+    selection => JSON.stringify(selectStore(store, selection || {}), null, 2),
+    [store]
+  )
+  // Import MERGES the file into the current store (upsert by month id + row id),
+  // so a partial backup never wipes data the file omits. A full backup upserts
+  // everything → same result as a replace. Accepts a file that carries months
+  // OR settings (partial/settings-only files are valid).
   const importJSON = useCallback(text => {
     const parsed = JSON.parse(text)
-    if (!parsed?.months || !Object.keys(parsed.months).length) throw new Error('Invalid backup file')
-    setStore(normalizeStore(parsed))
+    const hasMonths = parsed?.months && Object.keys(parsed.months).length
+    const hasSettings = parsed?.settings && Object.keys(parsed.settings).length
+    if (!hasMonths && !hasSettings) throw new Error('Invalid backup file')
+    setStore(prev => normalizeStore(mergeStore(prev, parsed)))
   }, [])
 
   return {
@@ -466,6 +481,7 @@ export function useBudgetStore(userId) {
     addMonth,
     deleteMonth,
     exportJSON,
+    exportSelectionJSON,
     importJSON,
   }
 }

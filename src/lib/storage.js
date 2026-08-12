@@ -172,6 +172,76 @@ export function normalizeStore(store) {
   return { ...store, settings, months }
 }
 
+// The per-month data groups a selective export/import operates on. `id` is
+// always carried (it's the row/month identity), never a selectable group.
+export const PER_MONTH_KEYS = ['holdings', 'banks', 'budget', 'bills', 'creditCards']
+
+// The global settings lists that get merged by row id on import (plus the
+// scalar `defaultBankName`, handled separately).
+const SETTINGS_LISTS = ['creditCards', 'spendCategories', 'recurringBills', 'recurringIncomes']
+
+// Build a filtered backup document from a store. `monthIds` selects which months
+// to include; `perMonthKeys` selects which per-month data groups to keep on each
+// (defaults to all); `includeGlobal` decides whether `settings` is embedded.
+// Pure — used both by the export modal and unit tests.
+export function selectStore(store, { monthIds, perMonthKeys = PER_MONTH_KEYS, includeGlobal = true } = {}) {
+  const ids = monthIds && monthIds.length ? monthIds : Object.keys(store.months || {})
+  const keys = perMonthKeys && perMonthKeys.length ? perMonthKeys : []
+  const months = {}
+  for (const id of ids) {
+    const m = store.months?.[id]
+    if (!m) continue
+    const picked = { id: m.id }
+    for (const k of keys) if (k in m) picked[k] = m[k]
+    months[id] = picked
+  }
+  const out = { activeMonthId: store.activeMonthId, months }
+  if (includeGlobal && store.settings) out.settings = store.settings
+  return out
+}
+
+// Upsert an incoming array into an existing one by row `id`: entries with a
+// matching id replace the existing row; new ids are appended; rows absent from
+// `incoming` are left untouched. Rows without an id (shouldn't happen) append.
+function mergeById(existing = [], incoming = []) {
+  if (!incoming.length) return existing
+  const out = existing.slice()
+  const idx = new Map(out.map((r, i) => [r.id, i]))
+  for (const row of incoming) {
+    if (row && row.id != null && idx.has(row.id)) out[idx.get(row.id)] = row
+    else out.push(row)
+  }
+  return out
+}
+
+// Merge a (possibly partial) backup document into the current store WITHOUT
+// wiping data the file omits. Months present in `incoming` are merged group-by-
+// group and row-by-row (see mergeById); months absent stay as they were; a month
+// id not yet in the store is added. Settings lists merge by id; `defaultBankName`
+// is overwritten only if the file carries a truthy value. A full backup upserts
+// everything → same end state as a replace. Returns a fresh store object.
+export function mergeStore(current, incoming) {
+  if (!incoming || typeof incoming !== 'object') return current
+  const months = { ...(current.months || {}) }
+  for (const [id, inMonth] of Object.entries(incoming.months || {})) {
+    const base = months[id] || { id }
+    const merged = { ...base, id }
+    for (const k of PER_MONTH_KEYS) {
+      if (Array.isArray(inMonth[k])) merged[k] = mergeById(base[k], inMonth[k])
+    }
+    months[id] = merged
+  }
+  const settings = { ...(current.settings || {}) }
+  const inSettings = incoming.settings
+  if (inSettings) {
+    for (const list of SETTINGS_LISTS) {
+      if (Array.isArray(inSettings[list])) settings[list] = mergeById(settings[list], inSettings[list])
+    }
+    if (inSettings.defaultBankName) settings.defaultBankName = inSettings.defaultBankName
+  }
+  return { ...current, months, settings }
+}
+
 export function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)

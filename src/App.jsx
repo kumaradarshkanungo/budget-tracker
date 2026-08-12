@@ -103,8 +103,6 @@ export default function App() {
           switchMonth={s.switchMonth}
           addMonth={s.addMonth}
           deleteMonth={s.deleteMonth}
-          exportJSON={s.exportJSON}
-          importJSON={s.importJSON}
           syncState={s.syncState}
           syncError={s.syncError}
           auth={auth}
@@ -132,7 +130,7 @@ export default function App() {
       <footer className="app-foot">
         {auth.configured
           ? 'Synced to your account across devices. A local copy is kept for offline use.'
-          : 'Data is stored locally in this browser. Use Export to back up.'}
+          : 'Data is stored locally in this browser. Use Settings → Backup & Restore to export.'}
       </footer>
     </div>
   )

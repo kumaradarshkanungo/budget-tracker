@@ -11,6 +11,7 @@ export function SettingsPage() {
   return (
     <Settings
       month={s.month}
+      months={s.months}
       settings={s.settings}
       addBank={s.addBank}
       renameBank={s.renameBank}
@@ -21,6 +22,8 @@ export function SettingsPage() {
       addSpendCategory={s.addSpendCategory}
       renameSpendCategory={s.renameSpendCategory}
       deleteSpendCategory={s.deleteSpendCategory}
+      exportSelectionJSON={s.exportSelectionJSON}
+      importJSON={s.importJSON}
       onClose={() => navigate('/')}
     />
   )

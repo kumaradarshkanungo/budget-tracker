@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { labelForMonthId } from '../lib/storage.js'
 
-// Month controls + backup: switch/add/delete months via a month-only picker,
-// show sync status, and JSON export/import. (Edit mode is toggled from the
-// app-wide floating action button; Settings + Sign out live in the app header.)
+// Month controls: switch/add/delete months via a month-only picker and show
+// sync status. (Edit mode is toggled from the app-wide floating action button;
+// Backup / Export / Import now live in Settings; Settings + Sign out live in the
+// app header.)
 export function MonthBar({
   month,
   months,
   switchMonth,
   addMonth,
   deleteMonth,
-  exportJSON,
-  importJSON,
   syncState,
   syncError,
   auth,
@@ -35,30 +34,6 @@ export function MonthBar({
       return
     }
     if (window.confirm(`Delete "${monthLabel}"? This cannot be undone.`)) deleteMonth(month.id)
-  }
-  function handleExport() {
-    const blob = new Blob([exportJSON()], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `budget-backup-${month.id}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-  function handleImportFile(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        importJSON(String(reader.result))
-        window.alert('Backup imported.')
-      } catch (err) {
-        window.alert('Import failed: ' + err.message)
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
   }
 
   const syncLabel = {
@@ -113,11 +88,6 @@ export function MonthBar({
             {syncState === 'error' && syncError ? ` — ${syncError}` : ''}
           </span>
         )}
-        <button className="mb-btn" onClick={handleExport}>Export</button>
-        <label className="mb-btn file-btn">
-          Import
-          <input type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
-        </label>
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
 import { TextInput } from './Inputs.jsx'
+import { BackupSection } from './BackupSection.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
 
 // Settings page: manage banks (add / rename / delete) and pick the default bank.
@@ -11,6 +12,7 @@ import { useEditable } from '../context/EditModeContext.jsx'
 // fields (edit state comes from EditModeContext).
 export function Settings({
   month,
+  months,
   settings,
   addBank,
   renameBank,
@@ -21,6 +23,8 @@ export function Settings({
   addSpendCategory,
   renameSpendCategory,
   deleteSpendCategory,
+  exportSelectionJSON,
+  importJSON,
   onClose,
 }) {
   const editable = useEditable()
@@ -185,6 +189,12 @@ export function Settings({
           </div>
         )}
       </Section>
+
+      <BackupSection
+        months={months}
+        exportSelectionJSON={exportSelectionJSON}
+        importJSON={importJSON}
+      />
 
       <Section title="More settings">
         <p className="hint" style={{ marginTop: 0 }}>

@@ -15,6 +15,9 @@ import {
   futureMonthIds,
   materializeRecurringIncomes,
   applyIncomesToMonth,
+  selectStore,
+  mergeStore,
+  PER_MONTH_KEYS,
   DEFAULT_BANK,
 } from '../src/lib/storage.js'
 
@@ -703,5 +706,157 @@ describe('syncRecurringToFutureMonths — recurring incomes', () => {
     store.settings.recurringIncomes = []
     const next = syncRecurringToFutureMonths(store, { today })
     expect(next.months['2026-09'].holdings.map(h => h.id)).toEqual(['sep-m'])
+  })
+})
+
+// A small two-month store used by the selective export / merge import tests.
+function backupFixture() {
+  return {
+    activeMonthId: '2026-08',
+    months: {
+      '2026-08': {
+        id: '2026-08',
+        holdings: [{ id: 'h1', label: 'Cash', amount: 100 }],
+        banks: [{ id: 'b1', name: 'IDFC', actual: 500, primary: true }],
+        budget: [{ id: 'bu1', category: 'Food', spend: 0, budget: 200 }],
+        bills: [{ id: 'bl1', name: 'Rent', amount: 1000, paid: false }],
+        creditCards: [{ id: 'cc1', cardId: 'card1', amount: 50 }],
+      },
+      '2026-07': {
+        id: '2026-07',
+        holdings: [{ id: 'h2', label: 'Cash', amount: 80 }],
+        banks: [{ id: 'b2', name: 'HDFC', actual: 300, primary: true }],
+        budget: [],
+        bills: [{ id: 'bl2', name: 'Wifi', amount: 60, paid: true }],
+        creditCards: [],
+      },
+    },
+    settings: {
+      defaultBankName: 'IDFC',
+      creditCards: [{ id: 'card1', name: 'Amex' }],
+      spendCategories: [{ id: 'sc1', name: 'Food' }],
+      recurringBills: [{ id: 'rb1', day: 1, name: 'Rent', amount: 1000 }],
+      recurringIncomes: [{ id: 'ri1', name: 'Salary', amount: 5000 }],
+    },
+  }
+}
+
+describe('selectStore (selective export)', () => {
+  it('includes only the chosen months', () => {
+    const out = selectStore(backupFixture(), { monthIds: ['2026-08'] })
+    expect(Object.keys(out.months)).toEqual(['2026-08'])
+    expect(out.months['2026-07']).toBeUndefined()
+  })
+
+  it('keeps only the chosen per-month data groups (plus id)', () => {
+    const out = selectStore(backupFixture(), { monthIds: ['2026-08'], perMonthKeys: ['bills'] })
+    const m = out.months['2026-08']
+    expect(Object.keys(m).sort()).toEqual(['bills', 'id'])
+    expect(m.bills).toHaveLength(1)
+    expect(m.holdings).toBeUndefined()
+    expect(m.banks).toBeUndefined()
+  })
+
+  it('embeds settings when includeGlobal is true and omits them when false', () => {
+    const withGlobal = selectStore(backupFixture(), { monthIds: ['2026-08'], includeGlobal: true })
+    expect(withGlobal.settings).toBeDefined()
+    expect(withGlobal.settings.creditCards).toHaveLength(1)
+    const without = selectStore(backupFixture(), { monthIds: ['2026-08'], includeGlobal: false })
+    expect(without.settings).toBeUndefined()
+  })
+
+  it('defaults to all months and all keys and includes global', () => {
+    const out = selectStore(backupFixture(), {})
+    expect(Object.keys(out.months).sort()).toEqual(['2026-07', '2026-08'])
+    for (const k of PER_MONTH_KEYS) expect(k in out.months['2026-08']).toBe(true)
+    expect(out.settings).toBeDefined()
+  })
+
+  it('carries the activeMonthId', () => {
+    const out = selectStore(backupFixture(), { monthIds: ['2026-07'] })
+    expect(out.activeMonthId).toBe('2026-08')
+  })
+})
+
+describe('mergeStore (merge import)', () => {
+  it('a partial file (one month, one group) upserts without wiping other data', () => {
+    const current = backupFixture()
+    // A backup carrying ONLY August bills, with an updated row + a new row.
+    const partial = {
+      months: {
+        '2026-08': {
+          id: '2026-08',
+          bills: [
+            { id: 'bl1', name: 'Rent (updated)', amount: 1200, paid: true }, // upsert existing
+            { id: 'bl3', name: 'Gym', amount: 40, paid: false }, // new
+          ],
+        },
+      },
+    }
+    const merged = mergeStore(current, partial)
+    const aug = merged.months['2026-08']
+    // Bills merged by id: existing updated, new appended.
+    expect(aug.bills.find(b => b.id === 'bl1').name).toBe('Rent (updated)')
+    expect(aug.bills.find(b => b.id === 'bl3')).toBeDefined()
+    expect(aug.bills).toHaveLength(2)
+    // Other August groups untouched.
+    expect(aug.holdings).toEqual(current.months['2026-08'].holdings)
+    expect(aug.banks).toEqual(current.months['2026-08'].banks)
+    // July untouched entirely.
+    expect(merged.months['2026-07']).toEqual(current.months['2026-07'])
+    // Settings untouched (file had none).
+    expect(merged.settings).toEqual(current.settings)
+  })
+
+  it('adds a month that does not yet exist', () => {
+    const current = backupFixture()
+    const incoming = {
+      months: { '2026-09': { id: '2026-09', bills: [{ id: 'bl9', name: 'New', amount: 10 }] } },
+    }
+    const merged = mergeStore(current, incoming)
+    expect(merged.months['2026-09']).toBeDefined()
+    expect(merged.months['2026-09'].bills).toHaveLength(1)
+    // Existing months still present.
+    expect(Object.keys(merged.months).sort()).toEqual(['2026-07', '2026-08', '2026-09'])
+  })
+
+  it('merges settings lists by id and overwrites defaultBankName only when truthy', () => {
+    const current = backupFixture()
+    const incoming = {
+      settings: {
+        creditCards: [
+          { id: 'card1', name: 'Amex Platinum' }, // upsert existing
+          { id: 'card2', name: 'Visa' }, // new
+        ],
+        defaultBankName: 'HDFC',
+      },
+    }
+    const merged = mergeStore(current, incoming)
+    expect(merged.settings.creditCards.find(c => c.id === 'card1').name).toBe('Amex Platinum')
+    expect(merged.settings.creditCards).toHaveLength(2)
+    expect(merged.settings.defaultBankName).toBe('HDFC')
+    // A list the file omitted stays intact.
+    expect(merged.settings.spendCategories).toEqual(current.settings.spendCategories)
+  })
+
+  it('does not overwrite defaultBankName with an empty value', () => {
+    const current = backupFixture()
+    const merged = mergeStore(current, { settings: { defaultBankName: '' } })
+    expect(merged.settings.defaultBankName).toBe('IDFC')
+  })
+
+  it('a full backup round-trips to an equivalent store', () => {
+    const current = backupFixture()
+    const full = JSON.parse(JSON.stringify(current)) // a complete export
+    const merged = mergeStore(current, full)
+    expect(merged.months).toEqual(current.months)
+    expect(merged.settings).toEqual(current.settings)
+  })
+
+  it('a settings-only file leaves all months intact', () => {
+    const current = backupFixture()
+    const merged = mergeStore(current, { settings: { spendCategories: [{ id: 'sc2', name: 'Travel' }] } })
+    expect(merged.months).toEqual(current.months)
+    expect(merged.settings.spendCategories.map(c => c.id).sort()).toEqual(['sc1', 'sc2'])
   })
 })
