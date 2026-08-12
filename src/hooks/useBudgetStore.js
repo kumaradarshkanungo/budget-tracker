@@ -250,6 +250,45 @@ export function useBudgetStore(userId) {
     }))
   }, [])
 
+  // ---- Recurring bills & EMIs (global master list in settings) ----------
+  // Templates hold only { day, name, bankName, amount }. They're materialized
+  // into a month's bills when that month is CREATED (see addMonth / newMonthFor),
+  // so editing them affects future months only — existing months are untouched.
+  const addRecurringBill = useCallback((tpl = {}) => {
+    setStore(prev => ({
+      ...prev,
+      settings: {
+        ...(prev.settings || {}),
+        recurringBills: [
+          ...((prev.settings || {}).recurringBills || []),
+          { id: uid('rb'), day: '', name: '', bankName: '', amount: 0, ...tpl },
+        ],
+      },
+    }))
+  }, [])
+
+  const updateRecurringBill = useCallback((id, patch) => {
+    setStore(prev => ({
+      ...prev,
+      settings: {
+        ...(prev.settings || {}),
+        recurringBills: ((prev.settings || {}).recurringBills || []).map(r =>
+          r.id === id ? { ...r, ...patch } : r
+        ),
+      },
+    }))
+  }, [])
+
+  const deleteRecurringBill = useCallback(id => {
+    setStore(prev => ({
+      ...prev,
+      settings: {
+        ...(prev.settings || {}),
+        recurringBills: ((prev.settings || {}).recurringBills || []).filter(r => r.id !== id),
+      },
+    }))
+  }, [])
+
   // ---- Month management --------------------------------------------------
   const months = useMemo(
     () =>
@@ -266,7 +305,7 @@ export function useBudgetStore(userId) {
     setStore(prev => {
       if (prev.months[monthId]) return { ...prev, activeMonthId: monthId }
       const tmpl = prev.months[prev.activeMonthId]
-      const m = newMonthFor(monthId, tmpl, prev.settings?.defaultBankName)
+      const m = newMonthFor(monthId, tmpl, prev.settings?.defaultBankName, prev.settings)
       return { ...prev, activeMonthId: monthId, months: { ...prev.months, [monthId]: m } }
     })
   }, [])
@@ -311,6 +350,9 @@ export function useBudgetStore(userId) {
     addSpendCategory,
     renameSpendCategory,
     deleteSpendCategory,
+    addRecurringBill,
+    updateRecurringBill,
+    deleteRecurringBill,
     switchMonth,
     addMonth,
     deleteMonth,

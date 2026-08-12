@@ -552,6 +552,20 @@ html, body {
 .add-bank-row { display: flex; gap: 8px; align-items: center; max-width: 480px; }
 .add-bank-row .cell-input { flex: 1; }
 
+/* Repeated bills & EMIs (Settings master data) */
+.recurring-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.recurring-row {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.recurring-row:last-child { border-bottom: none; }
+.rec-field { display: flex; flex-direction: column; gap: 3px; flex: 1 1 40%; }
+.rec-field[data-label='Day'] { flex: 0 0 70px; }
+.rec-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.rec-actions { flex: 0 0 auto; align-self: center; }
+.recurring-row .cell-input,
+.recurring-row .cell-display { width: 100%; }
+
 /* ---- Responsive: desktop layout ---------------------------------------- */
 /* Tablet: two columns for the top sections. */
 @media (min-width: 700px) and (max-width: 1099px) {

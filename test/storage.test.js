@@ -7,6 +7,7 @@ import {
   normalizeStore,
   defaultStore,
   applyDefaultBank,
+  materializeRecurringBills,
 } from '../src/lib/storage.js'
 
 describe('month date derivation', () => {
@@ -57,7 +58,12 @@ describe('newMonthFor', () => {
 describe('normalizeStore', () => {
   it('adds a settings object to legacy stores', () => {
     const legacy = { activeMonthId: '2026-08', months: { '2026-08': { id: '2026-08' } } }
-    expect(normalizeStore(legacy).settings).toEqual({ defaultBankName: '' })
+    expect(normalizeStore(legacy).settings).toEqual({
+      defaultBankName: '',
+      creditCards: [],
+      spendCategories: [],
+      recurringBills: [],
+    })
   })
   it('falls back to a seeded default store when empty', () => {
     // Note: defaultStore() mints fresh uids each call, so we can't deep-equal two
@@ -148,5 +154,65 @@ describe('applyDefaultBank', () => {
     const next = applyDefaultBank(makeStore(), 'AXIS')
     expect(next.settings.defaultBankName).toBe('AXIS')
     expect(next.months['2026-08'].banks.every(b => b.primary === false)).toBe(true)
+  })
+})
+
+describe('materializeRecurringBills', () => {
+  const banks = [
+    { id: 'bank-idfc', name: 'IDFC' },
+    { id: 'bank-hdfc', name: 'HDFC' },
+  ]
+  const templates = [
+    { id: 'rb1', day: 5, name: 'Home Loan', bankName: 'IDFC', amount: 100000 },
+    { id: 'rb2', day: 31, name: 'Month end', bankName: 'HDFC', amount: 500 },
+    { id: 'rb3', day: '', name: 'No date', bankName: 'IDFC', amount: 10 },
+    { id: 'rb4', day: 10, name: 'Unknown bank', bankName: 'NOPE', amount: 20 },
+  ]
+
+  it('builds the full date from the month year/month and the template day', () => {
+    const bills = materializeRecurringBills('2026-09', templates, banks)
+    expect(bills[0]).toMatchObject({ name: 'Home Loan', date: '2026-09-05', bankId: 'bank-idfc', paid: false })
+  })
+
+  it('clamps a day beyond the month length to the last day', () => {
+    expect(materializeRecurringBills('2026-02', templates, banks)[1].date).toBe('2026-02-28')
+    expect(materializeRecurringBills('2026-09', templates, banks)[1].date).toBe('2026-09-30')
+  })
+
+  it('leaves the date blank when the template has no day', () => {
+    expect(materializeRecurringBills('2026-09', templates, banks)[2].date).toBe('')
+  })
+
+  it('resolves the bank by name and leaves it untagged when no bank matches', () => {
+    const bills = materializeRecurringBills('2026-09', templates, banks)
+    expect(bills[3]).toMatchObject({ name: 'Unknown bank', bankId: '' })
+  })
+
+  it('always starts materialized bills unpaid', () => {
+    expect(materializeRecurringBills('2026-09', templates, banks).every(b => b.paid === false)).toBe(true)
+  })
+
+  it('returns an empty array for an invalid month id', () => {
+    expect(materializeRecurringBills('bogus', templates, banks)).toEqual([])
+  })
+})
+
+describe('newMonthFor seeds recurring bills', () => {
+  const template = { banks: [{ id: 'x', name: 'IDFC', actual: 9, primary: true }], budget: [] }
+  const settings = {
+    defaultBankName: 'IDFC',
+    recurringBills: [{ id: 'rb1', day: 5, name: 'Home Loan', bankName: 'IDFC', amount: 100000 }],
+  }
+
+  it('adds recurring bills to a newly created month, tagged to that month\'s bank id', () => {
+    const m = newMonthFor('2026-09', template, 'IDFC', settings)
+    expect(m.bills).toHaveLength(1)
+    const idfc = m.banks.find(b => b.name === 'IDFC')
+    expect(m.bills[0]).toMatchObject({ name: 'Home Loan', date: '2026-09-05', bankId: idfc.id, paid: false })
+  })
+
+  it('creates no bills when there are no recurring templates', () => {
+    expect(newMonthFor('2026-09', template, 'IDFC', { recurringBills: [] }).bills).toEqual([])
+    expect(newMonthFor('2026-09', template, 'IDFC', undefined).bills).toEqual([])
   })
 })

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
-import { TextInput } from './Inputs.jsx'
+import { TextInput, MoneyInput } from './Inputs.jsx'
 
 // Settings page: manage banks (add / rename / delete) and pick the default bank.
 // The Default Bank is the single source of truth for which bank is "primary" —
@@ -18,6 +18,9 @@ export function Settings({
   addSpendCategory,
   renameSpendCategory,
   deleteSpendCategory,
+  addRecurringBill,
+  updateRecurringBill,
+  deleteRecurringBill,
   editable,
   onToggleEdit,
   onClose,
@@ -29,6 +32,7 @@ export function Settings({
   const bankNames = Array.from(new Set(banks.map(b => b.name).filter(Boolean)))
   const cards = settings.creditCards || []
   const categories = [...(settings.spendCategories || [])].sort((a, b) => a.name.localeCompare(b.name))
+  const recurringBills = settings.recurringBills || []
 
   function handleAdd() {
     const name = newBank.trim()
@@ -61,6 +65,11 @@ export function Settings({
   function handleDeleteCategory(cat) {
     if (window.confirm(`Delete category "${cat.name || 'Unnamed'}"? Spends using it will show it as removed.`)) {
       deleteSpendCategory(cat.id)
+    }
+  }
+  function handleDeleteRecurring(r) {
+    if (window.confirm(`Delete repeated bill "${r.name || 'Unnamed'}"? Future months won't include it. Existing months are unaffected.`)) {
+      deleteRecurringBill(r.id)
     }
   }
 
@@ -187,6 +196,79 @@ export function Settings({
           <div className="add-bank-row">
             <TextInput value={newCategory} placeholder="New category name" onChange={setNewCategory} />
             <button className="mb-btn" onClick={handleAddCategory} disabled={!newCategory.trim()}>＋ Add category</button>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Repeated Bills & EMIs">
+        <p className="hint section-intro">
+          Bills that repeat every month (loans, EMIs, SIPs). Set the <strong>day</strong>, name, bank
+          and amount once — the year and month are filled in automatically. These are added
+          <strong> automatically to new months you create</strong>; existing months are left unchanged.
+        </p>
+        <div className="recurring-list">
+          {recurringBills.map(r => (
+            <div className="recurring-row" key={r.id}>
+              <span className="rec-field" data-label="Day">
+                <span className="rec-label">Day</span>
+                {editable ? (
+                  <select
+                    className="cell-input"
+                    value={r.day || ''}
+                    onChange={e => updateRecurringBill(r.id, { day: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="cell-display ro text">{r.day || '—'}</span>
+                )}
+              </span>
+              <span className="rec-field" data-label="Name">
+                <span className="rec-label">Name</span>
+                <TextInput
+                  value={r.name}
+                  placeholder="Name"
+                  onChange={v => updateRecurringBill(r.id, { name: v })}
+                />
+              </span>
+              <span className="rec-field" data-label="Bank">
+                <span className="rec-label">Bank</span>
+                {editable ? (
+                  <select
+                    className="cell-input"
+                    value={r.bankName || ''}
+                    onChange={e => updateRecurringBill(r.id, { bankName: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    {bankNames.map(n => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="cell-display ro text">{r.bankName || '—'}</span>
+                )}
+              </span>
+              <span className="rec-field" data-label="Amount">
+                <span className="rec-label">Amount</span>
+                <MoneyInput value={r.amount} onChange={v => updateRecurringBill(r.id, { amount: v })} />
+              </span>
+              <span className="rec-actions">
+                <IconButton label="Delete repeated bill" variant="danger" onClick={() => handleDeleteRecurring(r)} />
+              </span>
+            </div>
+          ))}
+          {recurringBills.length === 0 && <p className="hint">No repeated bills yet — add one below.</p>}
+        </div>
+        {editable && (
+          <div className="add-bank-row">
+            <button className="mb-btn" onClick={() => addRecurringBill()}>＋ Add repeated bill</button>
           </div>
         )}
       </Section>

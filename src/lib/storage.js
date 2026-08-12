@@ -33,11 +33,18 @@ export function monthStartDate(id) {
   return `${y}-${m.padStart(2, '0')}-01`
 }
 
+// Number of days in the given "YYYY-MM" month. "2026-02" -> 28.
+function daysInMonth(id) {
+  const [y, m] = String(id).split('-').map(Number)
+  if (!y || !m) return 31
+  return new Date(y, m, 0).getDate() // day 0 of next month = last day of this
+}
+
 // Last day of the month, ISO date string. "2026-08" -> "2026-08-31"
 export function monthEndDate(id) {
   const [y, m] = String(id).split('-').map(Number)
   if (!y || !m) return ''
-  const last = new Date(y, m, 0).getDate() // day 0 of next month = last day of this
+  const last = daysInMonth(id)
   return `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`
 }
 
@@ -87,14 +94,14 @@ export function defaultStore() {
   return {
     activeMonthId: m.id,
     months: { [m.id]: m },
-    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [] },
+    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [] },
   }
 }
 
 // Normalize any loaded store so older/partial documents get the new fields.
 export function normalizeStore(store) {
   if (!store || !store.months || !Object.keys(store.months).length) return defaultStore()
-  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], ...(store.settings || {}) }
+  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], ...(store.settings || {}) }
   return { ...store, settings }
 }
 
@@ -116,10 +123,42 @@ export function saveStore(store) {
   }
 }
 
+// Turn the global "Repeated Bills & EMIs" templates into concrete bills for a
+// given month. Each template stores only the DAY (1–31), name, bank NAME and
+// amount — the year+month come from monthId. The day is clamped to the month's
+// last day (so day 31 in February lands on the 28th/29th). Bank is resolved by
+// NAME against the month's banks (ids are regenerated per month), falling back
+// to untagged when there's no match. New bills always start unpaid.
+export function materializeRecurringBills(monthId, recurringBills, banks) {
+  const [y, m] = String(monthId).split('-')
+  const yy = Number(y)
+  const mm = Number(m)
+  if (!yy || !mm) return []
+  const last = daysInMonth(monthId)
+  return (recurringBills || []).map(tpl => {
+    const d = Number(tpl.day)
+    let date = ''
+    if (Number.isFinite(d) && d >= 1) {
+      const day = Math.min(d, last)
+      date = `${yy}-${String(mm).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+    const bank = (banks || []).find(b => b.name === tpl.bankName)
+    return {
+      id: uid('b'),
+      date,
+      name: tpl.name || '',
+      bankId: bank?.id || '',
+      amount: tpl.amount || 0,
+      paid: false,
+    }
+  })
+}
+
 // Build a fresh month for the given "YYYY-MM" id. Carries over bank names and
 // budget categories from a template month (amounts zeroed). Marks the settings
-// default bank as primary if present, else keeps the template's primary.
-export function newMonthFor(monthId, template, defaultBankName) {
+// default bank as primary if present, else keeps the template's primary. Seeds
+// the month's bills from the global recurring-bill templates in settings.
+export function newMonthFor(monthId, template, defaultBankName, settings) {
   let banks = (template?.banks || []).map(b => ({ ...b, id: uid('bank'), actual: 0 }))
   const budget = (template?.budget || []).map(b => ({ ...b, id: uid('bg'), spend: 0 }))
   if (!banks.length) banks = [{ id: uid('bank'), name: defaultBankName || 'Bank', actual: 0, primary: true }]
@@ -134,7 +173,7 @@ export function newMonthFor(monthId, template, defaultBankName) {
     holdings: [{ id: uid('h'), label: 'Available', amount: 0 }],
     banks,
     budget,
-    bills: [],
+    bills: materializeRecurringBills(monthId, settings?.recurringBills || [], banks),
     creditCards: [],
   }
 }

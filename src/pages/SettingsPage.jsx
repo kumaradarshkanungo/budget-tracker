@@ -25,6 +25,9 @@ export function SettingsPage() {
         addSpendCategory={s.addSpendCategory}
         renameSpendCategory={s.renameSpendCategory}
         deleteSpendCategory={s.deleteSpendCategory}
+        addRecurringBill={s.addRecurringBill}
+        updateRecurringBill={s.updateRecurringBill}
+        deleteRecurringBill={s.deleteRecurringBill}
         editable={editable}
         onToggleEdit={() => setEditable(v => !v)}
         onClose={() => navigate('/')}
