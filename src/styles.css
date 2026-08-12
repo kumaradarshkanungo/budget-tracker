@@ -24,17 +24,11 @@ html, body {
 #root { max-width: 100%; margin: 0 auto; }
 
 .app {
-  padding: calc(16px + env(safe-area-inset-top, 0px)) 24px calc(40px + env(safe-area-inset-bottom, 0px));
+  /* The floating action button is present on every page and paints over content,
+     so reserve bottom scroll clearance app-wide (collapsed ~56px FAB + gap) — the
+     expanded menu opens upward over content and needs no extra reserved space. */
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 24px calc(96px + env(safe-area-inset-bottom, 0px));
 }
-
-/* Fixed FABs paint over content, so reserve extra bottom scroll clearance when
-   they're present (classes set from App.jsx) — otherwise the last rows hide
-   behind the buttons. Add FAB reaches ~80px; the "Save" pill stacked above it
-   reaches ~142px; the Save pill alone reaches ~72px. Pad past the tallest case
-   in play, plus breathing room. env() is already covered by the .app base pad. */
-.app.has-add-fab { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
-.app.has-add-fab.is-editing { padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
-.app.is-editing:not(.has-add-fab) { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
 
 /* Top header rendered as a solid bar spanning the full viewport width, pinned
    flush to the very top. Negative margins cancel the .app container padding
@@ -127,12 +121,15 @@ html, body {
 .drawer-backdrop.open { opacity: 1; visibility: visible; }
 .drawer {
   position: fixed; top: 0; left: 0; z-index: 50;
-  height: 100vh; width: min(300px, 82vw);
+  height: 100vh; /* fallback for browsers without dvh */
+  height: 100dvh; /* shrinks with mobile browser chrome so the footer stays on-screen */
+  width: min(300px, 82vw);
   background: var(--card);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
   transform: translateX(-100%);
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   display: flex; flex-direction: column;
+  overflow-y: auto; /* short viewports can still scroll to reach Sign out */
 }
 .drawer.open { transform: translateX(0); }
 
@@ -205,7 +202,7 @@ html, body {
 }
 .drawer-item.active .drawer-item-icon { color: var(--teal); }
 .drawer-foot {
-  padding: 12px 12px; border-top: 1px solid var(--line);
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line);
 }
 .drawer-foot-note { color: var(--muted); font-size: 12px; padding: 14px 16px; }
 .drawer-signout {
@@ -503,12 +500,14 @@ html, body {
 /* ---- Credit card spends: filter, FAB, empty state ---------------------- */
 .card-filter { width: auto; min-width: 150px; font-weight: 600; }
 
-/* Floating "add spend" button, bottom-right, above the footer. */
+/* ---- Floating action button (app-wide) ---------------------------------- */
+/* One FAB per page, bottom-right. The round toggle keeps the classic .fab look;
+   the .fab-menu container owns the fixed placement so the action pills stack
+   directly above it. */
 .fab {
-  position: fixed; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 45;
   width: 56px; height: 56px; border-radius: 50%;
   border: none; background: var(--teal); color: #fff;
-  font-size: 28px; line-height: 1; cursor: pointer;
+  font-size: 26px; line-height: 1; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 14px rgba(47, 158, 143, 0.45);
   transition: background 0.15s ease, transform 0.1s ease;
@@ -516,17 +515,39 @@ html, body {
 .fab:hover { background: #268376; }
 .fab:active { transform: scale(0.94); }
 
-/* Floating "✓ Save" button shown only in edit mode — a pill (not a round icon)
-   so it reads as a labeled action. Sits above the add-spend FAB on screens that
-   already have one (.fab-stacked). */
-.fab-save {
-  width: auto; height: 48px; padding: 0 20px;
-  border-radius: 999px; font-size: 15px; font-weight: 700; gap: 6px;
-  z-index: 46; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+/* Container: fixed bottom-right; the actions column grows upward from the toggle. */
+.fab-menu {
+  position: fixed; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 46;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
 }
-.fab-save.fab-stacked {
-  bottom: calc(24px + 56px + 14px + env(safe-area-inset-bottom, 0px));
+.fab-menu .fab { position: static; }
+.fab-menu .fab.is-editing { background: var(--teal); }
+
+/* The expanding action pills — hidden (and inert) until the menu opens. */
+.fab-menu-actions {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
 }
+.fab-menu.is-open .fab-menu-actions {
+  opacity: 1; transform: translateY(0); pointer-events: auto;
+}
+.fab-action {
+  height: 44px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  box-shadow: var(--shadow);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.fab-action:hover { background: #f1f4f6; }
+.fab-action:active { transform: scale(0.97); }
+.fab-action.fab-action-primary { background: var(--teal); color: #fff; border-color: transparent; }
+.fab-action.fab-action-primary:hover { background: #268376; }
+
+/* Full-screen scrim so a tap outside the open menu closes it. Below the menu,
+   above page content and the round add/insights buttons. */
+.fab-scrim { position: fixed; inset: 0; z-index: 44; }
 
 /* ---- Modal -------------------------------------------------------------- */
 .modal-backdrop {

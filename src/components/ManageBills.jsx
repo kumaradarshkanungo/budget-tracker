@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
 import { TextInput, MoneyInput } from './Inputs.jsx'
 import { SwipeToDelete } from './SwipeToDelete.jsx'
+import { useEditable } from '../context/EditModeContext.jsx'
 import { DEFAULT_BANK } from '../lib/storage.js'
 
 // "Manage Bills & EMIs" page: the master lists that seed each month — Recurring
@@ -12,7 +13,8 @@ import { DEFAULT_BANK } from '../lib/storage.js'
 // and amount. Editing a template here re-syncs it into every already-created
 // FUTURE month — bills preserve paid status and manually-entered amounts; incomes
 // preserve their checked (received) flag; the current and past months are left
-// unchanged. Read-only by default; a page-level Edit toggle unlocks the fields.
+// unchanged. Read-only by default; the app-wide floating action button's Edit
+// action unlocks the fields (edit state comes from EditModeContext).
 export function ManageBills({
   month,
   settings,
@@ -23,10 +25,9 @@ export function ManageBills({
   addRecurringIncome,
   updateRecurringIncome,
   deleteRecurringIncome,
-  editable,
-  onToggleEdit,
   onClose,
 }) {
+  const editable = useEditable()
   const banks = month?.banks || []
   const bankNames = Array.from(new Set(banks.map(b => b.name).filter(Boolean)))
   const cards = settings.creditCards || []
@@ -70,13 +71,6 @@ export function ManageBills({
       <div className="settings-head">
         <h2>Manage Bills &amp; EMIs</h2>
         <div className="settings-head-actions">
-          <button
-            className={`mb-btn ${editable ? 'primary' : ''}`}
-            aria-pressed={editable}
-            onClick={onToggleEdit}
-          >
-            {editable ? '✓ Done' : '✎ Edit'}
-          </button>
           <button className="mb-btn" onClick={onClose}>← Back</button>
         </div>
       </div>

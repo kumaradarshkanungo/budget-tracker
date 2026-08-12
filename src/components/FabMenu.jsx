@@ -1,0 +1,96 @@
+import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
+import { usePageActions } from '../context/PageActionsContext.jsx'
+
+// The single app-wide floating action button. A round toggle that fans out a
+// small vertical stack of labeled action pills:
+//   read-only:  [＋ Add (if the page registered one)]  [✎ Edit]
+//   edit mode:  [＋ Add (if the page registered one)]  [✓ Save]
+// "Add" invokes the page's registered primary action (e.g. the add-spend modal).
+// "Edit"/"Save" flip the shared edit mode (persistence is automatic/debounced,
+// so Save just means "leave edit mode"). Closes on action select, scrim tap,
+// Escape, or route change. Mirrors the Escape-listener pattern in Modal/NavDrawer.
+export function FabMenu({ editable, onToggleEdit, onSave }) {
+  const { action } = usePageActions()
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState(false)
+  const firstActionRef = useRef(null)
+
+  // Collapse the menu whenever the route changes.
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname])
+
+  // Escape closes the expanded menu.
+  useEffect(() => {
+    if (!open) return
+    function onKey(e) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // Move focus into the menu when it opens.
+  useEffect(() => {
+    if (open && firstActionRef.current) firstActionRef.current.focus()
+  }, [open])
+
+  // Run an action pill, then collapse the menu.
+  function run(fn) {
+    setOpen(false)
+    fn()
+  }
+
+  return (
+    <>
+      {open && <div className="fab-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
+      <div className={`fab-menu ${open ? 'is-open' : ''}`}>
+        <div className="fab-menu-actions" role="menu" aria-hidden={!open}>
+          {action && (
+            <button
+              type="button"
+              ref={firstActionRef}
+              className="fab-action"
+              role="menuitem"
+              onClick={() => run(action.onAdd)}
+            >
+              {action.addLabel || '＋ Add'}
+            </button>
+          )}
+          {editable ? (
+            <button
+              type="button"
+              ref={action ? undefined : firstActionRef}
+              className="fab-action fab-action-primary"
+              role="menuitem"
+              onClick={() => run(onSave)}
+            >
+              ✓ Save
+            </button>
+          ) : (
+            <button
+              type="button"
+              ref={action ? undefined : firstActionRef}
+              className="fab-action"
+              role="menuitem"
+              onClick={() => run(onToggleEdit)}
+            >
+              ✎ Edit
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          className={`fab fab-toggle ${editable ? 'is-editing' : ''}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={open ? 'Close actions menu' : 'Open actions menu'}
+          onClick={() => setOpen(o => !o)}
+        >
+          {open ? '✕' : '⋯'}
+        </button>
+      </div>
+    </>
+  )
+}

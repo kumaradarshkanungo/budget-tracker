@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { labelForMonthId } from '../lib/storage.js'
 
 // Month controls + backup: switch/add/delete months via a month-only picker,
-// show sync status, and JSON export/import. (Settings + Sign out now live in the
-// app header.)
+// show sync status, and JSON export/import. (Edit mode is toggled from the
+// app-wide floating action button; Settings + Sign out live in the app header.)
 export function MonthBar({
   month,
   months,
@@ -16,7 +16,6 @@ export function MonthBar({
   syncError,
   auth,
   editable,
-  onToggleEdit,
 }) {
   const [picking, setPicking] = useState(false)
   const [pick, setPick] = useState('')
@@ -114,13 +113,6 @@ export function MonthBar({
             {syncState === 'error' && syncError ? ` — ${syncError}` : ''}
           </span>
         )}
-        <button
-          className={`mb-btn ${editable ? 'primary' : ''}`}
-          onClick={onToggleEdit}
-          aria-pressed={editable}
-        >
-          {editable ? '✓ Done' : '✎ Edit'}
-        </button>
         <button className="mb-btn" onClick={handleExport}>Export</button>
         <label className="mb-btn file-btn">
           Import

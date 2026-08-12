@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useStoreCtx } from './context/StoreContext.jsx'
 import { EditModeProvider } from './context/EditModeContext.jsx'
+import { PageActionsProvider } from './context/PageActionsContext.jsx'
 import { MonthBar } from './components/MonthBar.jsx'
 import { AppHeader } from './components/AppHeader.jsx'
 import { NavDrawer } from './components/NavDrawer.jsx'
-import { SaveFab } from './components/SaveFab.jsx'
+import { FabMenu } from './components/FabMenu.jsx'
 import { Login } from './components/Login.jsx'
 
 // Mobile-only "hide on scroll down, reveal on scroll up" for the sticky header.
@@ -66,16 +67,14 @@ export default function App() {
     setEditable(false)
   }, [location.pathname])
 
-  // The month bar (month picker, edit toggle, backup) belongs to the dashboard
-  // and the credit-card screens (spends + insights) — all operate on the active
-  // month. Hide it on Settings and any other route.
+  // The month bar (month picker, add/delete month, backup) belongs to the
+  // dashboard and the credit-card screens (spends + insights) — all operate on
+  // the active month. Hide it on Settings and any other route.
   const showMonthBar = location.pathname === '/' || location.pathname.startsWith('/credit-cards')
 
-  // The round "add spend" FAB renders only on the credit-card spends screen; the
-  // "✓ Save" pill renders in edit mode on any page. Both are position:fixed, so
-  // reserve matching bottom scroll clearance (below) via classes on the .app root
-  // so the last rows can scroll clear instead of hiding behind the buttons.
-  const hasAddFab = location.pathname === '/credit-cards'
+  // The floating action button is shown on every page EXCEPT the read-only
+  // insights view, where nothing is editable and there's no primary add action.
+  const showFab = location.pathname !== '/credit-cards/insights'
 
   // Auth is only enforced when Supabase is configured.
   if (auth.configured) {
@@ -88,7 +87,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app${hasAddFab ? ' has-add-fab' : ''}${editable ? ' is-editing' : ''}`}>
+    <div className="app">
       <AppHeader
         auth={auth}
         onNavigate={navigate}
@@ -110,20 +109,24 @@ export default function App() {
           syncError={s.syncError}
           auth={auth}
           editable={editable}
-          onToggleEdit={() => setEditable(e => !e)}
         />
       )}
 
-      <EditModeProvider editable={editable}>
-        <Outlet />
-        {/* Floating Save (exits edit mode) so you can save from anywhere without
-            scrolling to the top. Stacks above the round add-spend FAB, which only
-            appears on the credit-card spends screen (not /credit-cards/insights). */}
-        <SaveFab
-          onExit={() => setEditable(false)}
-          stacked={location.pathname === '/credit-cards'}
-        />
-      </EditModeProvider>
+      <PageActionsProvider>
+        <EditModeProvider editable={editable}>
+          <Outlet />
+          {/* One floating action button for the whole app: it fans out Add (when
+              the page registers a primary add) plus Edit/Save. Hidden on the
+              read-only insights view. */}
+          {showFab && (
+            <FabMenu
+              editable={editable}
+              onToggleEdit={() => setEditable(e => !e)}
+              onSave={() => setEditable(false)}
+            />
+          )}
+        </EditModeProvider>
+      </PageActionsProvider>
 
       <footer className="app-foot">
         {auth.configured

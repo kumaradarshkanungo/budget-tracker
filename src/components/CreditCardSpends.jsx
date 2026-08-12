@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { creditCardTotal } from '../lib/calc.js'
 import { uid, monthStartDate } from '../lib/storage.js'
@@ -8,11 +8,13 @@ import { MoneyInput, TextInput } from './Inputs.jsx'
 import { SwipeToDelete } from './SwipeToDelete.jsx'
 import { Modal } from './Modal.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
+import { useRegisterPageAction } from '../context/PageActionsContext.jsx'
 
 const emptyDraft = () => ({ cardId: '', categoryId: '', date: '', amount: '', notes: '' })
 
 // Credit Card Spends screen: pick a card (or all), see this month's spends in a
-// table (Date · Category · Amount · Notes), and add a spend via the + FAB.
+// table (Date · Category · Amount · Notes), and add a spend via the app-wide
+// floating action button's "＋ Add spend" action (registered below).
 // Cards and categories are global master lists (settings); spends are per month.
 export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow }) {
   const navigate = useNavigate()
@@ -29,10 +31,12 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   const cardName = id => cards.find(c => c.id === id)?.name || '(deleted)'
   const categoryName = id => categories.find(c => c.id === id)?.name || '(deleted)'
 
-  function openModal() {
+  const openModal = useCallback(() => {
     setDraft({ ...emptyDraft(), cardId: selectedCard || cards[0]?.id || '', date: monthStartDate(month.id) })
     setModalOpen(true)
-  }
+  }, [selectedCard, cards, month.id])
+  // Register this page's primary add action so the app-wide FAB shows "＋ Add spend".
+  useRegisterPageAction(openModal, '＋ Add spend', [openModal])
   function closeModal() {
     setModalOpen(false)
   }
@@ -161,10 +165,6 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
           </>
         )}
       </Section>
-
-      <button className="fab" aria-label="Add spend" onClick={openModal}>
-        ＋
-      </button>
 
       <Modal
         open={modalOpen}

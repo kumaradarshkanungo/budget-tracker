@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
 import { TextInput } from './Inputs.jsx'
+import { useEditable } from '../context/EditModeContext.jsx'
 
 // Settings page: manage banks (add / rename / delete) and pick the default bank.
 // The Default Bank is the single source of truth for which bank is "primary" —
 // choosing one marks it primary on the current month and on any months created
-// afterwards. Previous months keep whatever primary they already had.
+// afterwards. Previous months keep whatever primary they already had. Read-only
+// by default; the app-wide floating action button's Edit action unlocks the
+// fields (edit state comes from EditModeContext).
 export function Settings({
   month,
   settings,
@@ -18,10 +21,9 @@ export function Settings({
   addSpendCategory,
   renameSpendCategory,
   deleteSpendCategory,
-  editable,
-  onToggleEdit,
   onClose,
 }) {
+  const editable = useEditable()
   const [newBank, setNewBank] = useState('')
   const [newCard, setNewCard] = useState('')
   const [newCategory, setNewCategory] = useState('')
@@ -69,13 +71,6 @@ export function Settings({
       <div className="settings-head">
         <h2>Settings</h2>
         <div className="settings-head-actions">
-          <button
-            className={`mb-btn ${editable ? 'primary' : ''}`}
-            aria-pressed={editable}
-            onClick={onToggleEdit}
-          >
-            {editable ? '✓ Done' : '✎ Edit'}
-          </button>
           <button className="mb-btn" onClick={onClose}>← Back</button>
         </div>
       </div>
