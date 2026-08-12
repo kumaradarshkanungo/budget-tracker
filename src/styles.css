@@ -478,7 +478,7 @@ html, body {
 }
 
 /* ---- Credit card spends: action cluster -------------------------------- */
-.spends-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spends-actions { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ---- Icon buttons ------------------------------------------------------- */
 .icon-btn {
@@ -498,8 +498,21 @@ html, body {
 .swipe-delete-panel { display: none; }
 
 /* ---- Credit card spends: filter, FAB, empty state ---------------------- */
-.card-filter { width: auto; min-width: 150px; font-weight: 600; }
-/* Card filter is a compact icon button that reveals the dropdown on tap. */
+/* Card filter is a compact icon button that opens a popover option list on tap
+   (no visible <select> — just the options). */
+.card-filter-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
+  min-width: 180px; padding: 6px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.card-filter-option {
+  text-align: left; padding: 9px 12px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text); font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.card-filter-option:hover { background: var(--line); }
+.card-filter-option.is-selected { color: #fff; background: var(--teal); }
 .filter-btn {
   width: 36px; height: 36px; border-radius: 8px;
   border: 1px solid var(--line); background: var(--card); color: var(--text);

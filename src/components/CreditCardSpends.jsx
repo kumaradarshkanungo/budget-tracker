@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { creditCardTotal } from '../lib/calc.js'
 import { uid, monthStartDate } from '../lib/storage.js'
@@ -66,36 +66,14 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
         accent="#7c5cff"
         actions={
           cards.length > 0 && (
-            <div className="spends-actions">
-              <button
-                type="button"
-                className={`filter-btn ${selectedCard ? 'is-active' : ''}`}
-                aria-label="Filter by card"
-                aria-expanded={filterOpen}
-                title={selectedCard ? cardName(selectedCard) : 'Filter by card'}
-                onClick={() => setFilterOpen(o => !o)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
-                </svg>
-              </button>
-              {filterOpen && (
-                <select
-                  className="cell-input card-filter"
-                  value={selectedCard}
-                  onChange={e => setSelectedCard(e.target.value)}
-                  aria-label="Filter by card"
-                  autoFocus
-                >
-                  <option value="">All cards</option>
-                  {cards.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            <CardFilter
+              cards={cards}
+              selectedCard={selectedCard}
+              cardName={cardName}
+              onSelect={setSelectedCard}
+              open={filterOpen}
+              setOpen={setFilterOpen}
+            />
           )
         }
       >
@@ -267,6 +245,71 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
           </>
         )}
       </Modal>
+    </div>
+  )
+}
+
+// Card filter: a compact funnel icon button that opens a small popover menu of
+// options (All cards + one per card). No visible <select> — tapping the funnel
+// reveals just the option list; picking one selects it and closes the popover.
+// Closes on outside click, Escape, or route/selection change (mirrors the
+// Escape-listener idiom in Modal/FabMenu).
+function CardFilter({ cards, selectedCard, cardName, onSelect, open, setOpen }) {
+  const wrapRef = useRef(null)
+
+  // Close on click outside the whole cluster and on Escape.
+  useEffect(() => {
+    if (!open) return
+    function onDocDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onDocDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDocDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, setOpen])
+
+  const options = [{ id: '', name: 'All cards' }, ...cards]
+
+  return (
+    <div className="spends-actions" ref={wrapRef}>
+      <button
+        type="button"
+        className={`filter-btn ${selectedCard ? 'is-active' : ''}`}
+        aria-label="Filter by card"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={selectedCard ? cardName(selectedCard) : 'Filter by card'}
+        onClick={() => setOpen(o => !o)}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="card-filter-menu" role="menu" aria-label="Filter by card">
+          {options.map(o => (
+            <button
+              key={o.id || 'all'}
+              type="button"
+              role="menuitemradio"
+              aria-checked={selectedCard === o.id}
+              className={`card-filter-option ${selectedCard === o.id ? 'is-selected' : ''}`}
+              onClick={() => {
+                onSelect(o.id)
+                setOpen(false)
+              }}
+            >
+              {o.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
