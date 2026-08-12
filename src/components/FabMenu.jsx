@@ -3,14 +3,16 @@ import { useLocation } from 'react-router-dom'
 import { usePageActions } from '../context/PageActionsContext.jsx'
 
 // The single app-wide floating action button. A round toggle that fans out a
-// small vertical stack of labeled action pills:
+// small vertical stack of round, color-coded icon buttons (label text is carried
+// on aria-label/title, not shown):
 //   read-only:  [＋ Add (if the page registered one)]  [✎ Edit]
-//   edit mode:  [＋ Add (if the page registered one)]  [✓ Save]
+//   edit mode:  [＋ Add (if the page registered one)]  [✕ Cancel]  [✓ Save]
 // "Add" invokes the page's registered primary action (e.g. the add-spend modal).
-// "Edit"/"Save" flip the shared edit mode (persistence is automatic/debounced,
-// so Save just means "leave edit mode"). Closes on action select, scrim tap,
-// Escape, or route change. Mirrors the Escape-listener pattern in Modal/NavDrawer.
-export function FabMenu({ editable, onToggleEdit, onSave }) {
+// "Edit" enters edit mode; "Save"/"Cancel" leave it (persistence is automatic/
+// debounced, so both just mean "leave edit mode"). Closes on action select,
+// scrim tap, Escape, or route change. Mirrors the Escape-listener pattern in
+// Modal/NavDrawer.
+export function FabMenu({ editable, onToggleEdit, onSave, onCancel }) {
   const { action } = usePageActions()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
@@ -51,32 +53,50 @@ export function FabMenu({ editable, onToggleEdit, onSave }) {
             <button
               type="button"
               ref={firstActionRef}
-              className="fab-action"
+              className="fab-action fab-action-add"
               role="menuitem"
+              aria-label={action.addLabel || 'Add'}
+              title={action.addLabel || 'Add'}
               onClick={() => run(action.onAdd)}
             >
-              {action.addLabel || '＋ Add'}
+              ＋
             </button>
           )}
           {editable ? (
-            <button
-              type="button"
-              ref={action ? undefined : firstActionRef}
-              className="fab-action fab-action-primary"
-              role="menuitem"
-              onClick={() => run(onSave)}
-            >
-              ✓ Save
-            </button>
+            <>
+              <button
+                type="button"
+                ref={action ? undefined : firstActionRef}
+                className="fab-action fab-action-cancel"
+                role="menuitem"
+                aria-label="Cancel"
+                title="Cancel"
+                onClick={() => run(onCancel)}
+              >
+                ✕
+              </button>
+              <button
+                type="button"
+                className="fab-action fab-action-save"
+                role="menuitem"
+                aria-label="Save"
+                title="Save"
+                onClick={() => run(onSave)}
+              >
+                ✓
+              </button>
+            </>
           ) : (
             <button
               type="button"
               ref={action ? undefined : firstActionRef}
-              className="fab-action"
+              className="fab-action fab-action-edit"
               role="menuitem"
+              aria-label="Edit"
+              title="Edit"
               onClick={() => run(onToggleEdit)}
             >
-              ✎ Edit
+              ✎
             </button>
           )}
         </div>

@@ -123,6 +123,7 @@ export default function App() {
               editable={editable}
               onToggleEdit={() => setEditable(e => !e)}
               onSave={() => setEditable(false)}
+              onCancel={() => setEditable(false)}
             />
           )}
         </EditModeProvider>

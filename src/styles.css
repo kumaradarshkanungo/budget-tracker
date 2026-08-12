@@ -533,17 +533,22 @@ html, body {
 .fab-menu.is-open .fab-menu-actions {
   opacity: 1; transform: translateY(0); pointer-events: auto;
 }
+/* Action buttons are round, color-coded icon buttons (label lives on
+   aria-label/title). Each is a mini-FAB stacked above the toggle. */
 .fab-action {
-  height: 44px; padding: 0 18px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--card); color: var(--text);
-  font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap;
-  box-shadow: var(--shadow);
-  transition: background 0.15s ease, transform 0.1s ease;
+  width: 48px; height: 48px; border-radius: 50%;
+  border: none; color: #fff;
+  font-size: 22px; line-height: 1; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 3px 12px rgba(15, 23, 30, 0.28);
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
-.fab-action:hover { background: #f1f4f6; }
-.fab-action:active { transform: scale(0.97); }
-.fab-action.fab-action-primary { background: var(--teal); color: #fff; border-color: transparent; }
-.fab-action.fab-action-primary:hover { background: #268376; }
+.fab-action:hover { filter: brightness(1.08); }
+.fab-action:active { transform: scale(0.94); }
+.fab-action-add { background: #7c5cff; }
+.fab-action-edit { background: #2f6fed; }
+.fab-action-save { background: var(--teal); }
+.fab-action-cancel { background: #e5484d; }
 
 /* Full-screen scrim so a tap outside the open menu closes it. Below the menu,
    above page content and the round add/insights buttons. */
