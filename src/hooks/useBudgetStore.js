@@ -7,6 +7,7 @@ import {
   labelForMonthId,
   applyDefaultBank,
   prevMonthId,
+  syncRecurringToFutureMonths,
   uid,
 } from '../lib/storage.js'
 import { creditCardTotal } from '../lib/calc.js'
@@ -257,40 +258,51 @@ export function useBudgetStore(userId) {
   // is a plain bill; type 'card' names itself after a credit card and prefetches
   // its amount from the prior month's spends at materialization. They're
   // materialized into a month's bills when that month is CREATED (see addMonth /
-  // newMonthFor), so editing them affects future months only.
+  // newMonthFor); editing/adding/deleting a template also re-syncs it into every
+  // already-created FUTURE month (syncRecurringToFutureMonths), preserving each
+  // bill's paid status and any manually-entered amount.
   const addRecurringBill = useCallback((tpl = {}) => {
-    setStore(prev => ({
-      ...prev,
-      settings: {
-        ...(prev.settings || {}),
-        recurringBills: [
-          ...((prev.settings || {}).recurringBills || []),
-          { id: uid('rb'), day: '', name: '', bankName: '', amount: 0, type: 'manual', cardId: '', ...tpl },
-        ],
-      },
-    }))
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringBills: [
+            ...((prev.settings || {}).recurringBills || []),
+            { id: uid('rb'), day: '', name: '', bankName: '', amount: 0, type: 'manual', cardId: '', ...tpl },
+          ],
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
   }, [])
 
   const updateRecurringBill = useCallback((id, patch) => {
-    setStore(prev => ({
-      ...prev,
-      settings: {
-        ...(prev.settings || {}),
-        recurringBills: ((prev.settings || {}).recurringBills || []).map(r =>
-          r.id === id ? { ...r, ...patch } : r
-        ),
-      },
-    }))
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringBills: ((prev.settings || {}).recurringBills || []).map(r =>
+            r.id === id ? { ...r, ...patch } : r
+          ),
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
   }, [])
 
   const deleteRecurringBill = useCallback(id => {
-    setStore(prev => ({
-      ...prev,
-      settings: {
-        ...(prev.settings || {}),
-        recurringBills: ((prev.settings || {}).recurringBills || []).filter(r => r.id !== id),
-      },
-    }))
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringBills: ((prev.settings || {}).recurringBills || []).filter(r => r.id !== id),
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
   }, [])
 
   // Add a credit-card bill to the ACTIVE month's Bills & EMIs. Its name is the

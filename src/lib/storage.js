@@ -50,6 +50,14 @@ export function prevMonthId(id) {
   return `${py}-${String(pm).padStart(2, '0')}`
 }
 
+// The current calendar month as "YYYY-MM". `today` is injectable so tests can
+// pin "now" deterministically (mirrors calc.js dateTracker(month, today)).
+export function currentMonthId(today = new Date()) {
+  const y = today.getFullYear()
+  const m = today.getMonth() + 1
+  return `${y}-${String(m).padStart(2, '0')}`
+}
+
 // Sum of a given card's spends in a month. Inlined here (rather than importing
 // creditCardTotal from calc.js) because calc.js imports from this module, so the
 // reverse import would create a cycle. Mirrors creditCardTotal(month, cardId).
@@ -185,6 +193,12 @@ export function materializeRecurringBills(monthId, recurringBills, banks, opts =
       bankId: bank?.id || '',
       amount,
       paid: false,
+      // Provenance: rbId links the bill back to its template so template edits
+      // can propagate to future months (see syncRecurringToFutureMonths).
+      // amountAuto stays true while the amount is template/prefetch-derived; the
+      // UI flips it to false once the user edits this bill's amount directly.
+      rbId: tpl.id,
+      amountAuto: true,
     }
   })
 }
@@ -218,6 +232,95 @@ export function newMonthFor(monthId, template, defaultBankName, settings, prevMo
 }
 
 export { STORAGE_KEY }
+
+// Re-derive one month's bills from the given recurring-bill templates, PRESERVING
+// user state. Pure — returns a NEW bills array (does not mutate `month`).
+//
+// - Bills WITHOUT an rbId are treated as manual and passed through untouched
+//   (this is the back-compat safety key: propagation never deletes/rewrites them).
+// - Each template produces exactly one bill. If a matching bill already existed
+//   (same rbId) its stable id, paid flag, and — when amountAuto === false — its
+//   manually-entered amount are preserved. Name/day-derived date/bank are always
+//   re-resolved from the template against THIS month.
+// - Template bills whose template no longer exists are dropped.
+export function applyTemplatesToMonth(month, recurringBills, opts = {}) {
+  const { cards = [], prevMonth = null } = opts
+  const templates = recurringBills || []
+  const tplIds = new Set(templates.map(t => t.id))
+  const banks = month?.banks || []
+  const last = daysInMonth(month?.id)
+  const existing = month?.bills || []
+
+  // Keep every manual (rbId-less) bill exactly as-is.
+  const manual = existing.filter(b => !b.rbId)
+  // Index surviving template bills by their template id for state preservation.
+  const byRb = new Map(existing.filter(b => b.rbId && tplIds.has(b.rbId)).map(b => [b.rbId, b]))
+
+  const fromTemplates = templates.map(tpl => {
+    const prev = byRb.get(tpl.id)
+
+    // Date from THIS month + template day (clamped to the month's last day).
+    const d = Number(tpl.day)
+    let date = ''
+    if (Number.isFinite(d) && d >= 1) {
+      date = `${month.id}-${String(Math.min(d, last)).padStart(2, '0')}`
+    }
+
+    // Name — card templates name themselves after the card.
+    let name = tpl.name || ''
+    if (tpl.type === 'card') name = cards.find(c => c.id === tpl.cardId)?.name || ''
+
+    // Bank re-resolved by NAME against THIS month's banks (ids differ per month).
+    const bankId = banks.find(b => b.name === tpl.bankName)?.id || ''
+
+    // Amount — preserve a manual override; else recompute from the template
+    // (card templates prefetch from THIS month's prior month card spends).
+    const isAuto = prev ? prev.amountAuto !== false : true
+    let amount
+    if (!isAuto) {
+      amount = prev.amount
+    } else if (tpl.type === 'card') {
+      amount = tpl.amount || sumCardSpends(prevMonth, tpl.cardId)
+    } else {
+      amount = tpl.amount || 0
+    }
+
+    return {
+      id: prev?.id || uid('b'),
+      date,
+      name,
+      bankId,
+      amount,
+      paid: prev ? !!prev.paid : false,
+      rbId: tpl.id,
+      amountAuto: isAuto,
+    }
+  })
+
+  return [...manual, ...fromTemplates]
+}
+
+// Propagate the current recurring-bill templates to every FUTURE month — those
+// whose id is strictly greater than the current calendar month. Pure — returns a
+// NEW store (or the same reference if nothing changed). `today` is injectable for
+// tests. prevMonth is read from the ORIGINAL store so iteration order is
+// irrelevant (card amounts derive from spends, which this function never edits).
+export function syncRecurringToFutureMonths(store, opts = {}) {
+  const { today = new Date() } = opts
+  const cur = currentMonthId(today)
+  const templates = store.settings?.recurringBills || []
+  const cards = store.settings?.creditCards || []
+  const months = { ...store.months }
+  let changed = false
+  for (const id of Object.keys(months)) {
+    if (id <= cur) continue // future = strictly greater than the current month
+    const m = months[id]
+    const prevMonth = store.months[prevMonthId(id)] || null
+    months[id] = { ...m, bills: applyTemplatesToMonth(m, templates, { cards, prevMonth }) }
+    changed = true
+  }
+  return changed ? { ...store, months } : store
+}
 
 // Set the default/primary bank on a store. Pure — returns a new store.
 // Records the choice in settings.defaultBankName (remembered for FUTURE months

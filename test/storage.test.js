@@ -9,6 +9,9 @@ import {
   applyDefaultBank,
   materializeRecurringBills,
   prevMonthId,
+  currentMonthId,
+  applyTemplatesToMonth,
+  syncRecurringToFutureMonths,
 } from '../src/lib/storage.js'
 
 describe('month date derivation', () => {
@@ -283,5 +286,154 @@ describe('newMonthFor seeds card-type recurring bills', () => {
     const idfc = m.banks.find(b => b.name === 'IDFC')
     expect(m.bills).toHaveLength(1)
     expect(m.bills[0]).toMatchObject({ name: 'HDFC Card', date: '2026-09-15', bankId: idfc.id, amount: 4321, paid: false })
+  })
+})
+
+describe('currentMonthId', () => {
+  it('formats an injected date as YYYY-MM', () => {
+    expect(currentMonthId(new Date(2026, 1, 3))).toBe('2026-02') // Feb (0-indexed month)
+    expect(currentMonthId(new Date(2026, 11, 31))).toBe('2026-12')
+  })
+  it('zero-pads single-digit months', () => {
+    expect(currentMonthId(new Date(2026, 0, 1))).toBe('2026-01') // January
+    expect(currentMonthId(new Date(2027, 8, 9))).toBe('2027-09')
+  })
+  it('defaults to now and returns a YYYY-MM string', () => {
+    expect(currentMonthId()).toMatch(/^\d{4}-\d{2}$/)
+  })
+})
+
+describe('materializeRecurringBills — provenance stamping', () => {
+  const banks = [{ id: 'bank-idfc', name: 'IDFC' }]
+  const templates = [{ id: 'rb1', day: 5, name: 'Home Loan', bankName: 'IDFC', amount: 100000 }]
+
+  it('stamps rbId (the template id) and amountAuto:true on each materialized bill', () => {
+    const bill = materializeRecurringBills('2026-09', templates, banks)[0]
+    expect(bill).toMatchObject({ name: 'Home Loan', rbId: 'rb1', amountAuto: true })
+  })
+})
+
+describe('syncRecurringToFutureMonths', () => {
+  const today = new Date(2026, 7, 15) // August 2026 → currentMonthId '2026-08'
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const templates = [
+    { id: 'rb1', day: 5, name: 'Home Loan', bankName: 'IDFC', amount: 100000, type: 'manual' },
+  ]
+
+  // A store with a past, current, and future month, all seeded from the template.
+  const makeStore = (extra = {}) => ({
+    activeMonthId: '2026-08',
+    settings: { recurringBills: templates, creditCards: cards },
+    months: {
+      '2026-07': {
+        id: '2026-07',
+        banks: [{ id: 'j-idfc', name: 'IDFC' }],
+        bills: [{ id: 'b-jul', date: '2026-07-05', name: 'Home Loan', bankId: 'j-idfc', amount: 100000, paid: true, rbId: 'rb1', amountAuto: true }],
+      },
+      '2026-08': {
+        id: '2026-08',
+        banks: [{ id: 'a-idfc', name: 'IDFC' }],
+        bills: [{ id: 'b-aug', date: '2026-08-05', name: 'Home Loan', bankId: 'a-idfc', amount: 100000, paid: false, rbId: 'rb1', amountAuto: true }],
+      },
+      '2026-09': {
+        id: '2026-09',
+        banks: [{ id: 's-idfc', name: 'IDFC' }],
+        bills: [{ id: 'b-sep', date: '2026-09-05', name: 'Home Loan', bankId: 's-idfc', amount: 100000, paid: false, rbId: 'rb1', amountAuto: true }],
+        ...(extra.sep || {}),
+      },
+    },
+  })
+
+  it('leaves months at or before the current month untouched (same reference)', () => {
+    const store = makeStore()
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-07']).toBe(store.months['2026-07'])
+    expect(next.months['2026-08']).toBe(store.months['2026-08'])
+  })
+
+  it('re-syncs only future months when a template changes', () => {
+    const store = makeStore()
+    // Rename the template; future month should pick up the new name.
+    store.settings.recurringBills = [{ ...templates[0], name: 'Housing Loan' }]
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-09'].bills[0].name).toBe('Housing Loan')
+    // Past/current keep the old name (untouched).
+    expect(next.months['2026-07'].bills[0].name).toBe('Home Loan')
+    expect(next.months['2026-08'].bills[0].name).toBe('Home Loan')
+  })
+
+  it('preserves paid status on future template bills', () => {
+    const store = makeStore({ sep: { bills: [{ id: 'b-sep', date: '2026-09-05', name: 'Home Loan', bankId: 's-idfc', amount: 100000, paid: true, rbId: 'rb1', amountAuto: true }] } })
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-09'].bills[0].paid).toBe(true)
+    expect(next.months['2026-09'].bills[0].id).toBe('b-sep') // stable id kept
+  })
+
+  it('preserves a manually-entered amount (amountAuto:false) but recomputes auto ones', () => {
+    const store = makeStore({ sep: { bills: [{ id: 'b-sep', date: '2026-09-05', name: 'Home Loan', bankId: 's-idfc', amount: 55555, paid: false, rbId: 'rb1', amountAuto: false }] } })
+    // Template amount changes to 200000.
+    store.settings.recurringBills = [{ ...templates[0], amount: 200000 }]
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-09'].bills[0].amount).toBe(55555) // manual override kept
+
+    const store2 = makeStore() // sep bill is amountAuto:true
+    store2.settings.recurringBills = [{ ...templates[0], amount: 200000 }]
+    const next2 = syncRecurringToFutureMonths(store2, { today })
+    expect(next2.months['2026-09'].bills[0].amount).toBe(200000) // recomputed
+  })
+
+  it('drops only the rbId bill when its template is removed, keeping manual bills', () => {
+    const store = makeStore({ sep: { bills: [
+      { id: 'b-sep', date: '2026-09-05', name: 'Home Loan', bankId: 's-idfc', amount: 100000, paid: false, rbId: 'rb1', amountAuto: true },
+      { id: 'b-manual', date: '2026-09-20', name: 'Ad-hoc', bankId: 's-idfc', amount: 999, paid: false },
+    ] } })
+    store.settings.recurringBills = [] // template deleted
+    const next = syncRecurringToFutureMonths(store, { today })
+    const bills = next.months['2026-09'].bills
+    expect(bills.map(b => b.id)).toEqual(['b-manual']) // rbId bill dropped, manual survives
+  })
+
+  it('recomputes card-bill amounts per month from each month\'s own prior month', () => {
+    const cardTpl = [{ id: 'rbc', type: 'card', cardId: 'card-hdfc', day: 10, bankName: 'IDFC', amount: 0 }]
+    const store = {
+      activeMonthId: '2026-08',
+      settings: { recurringBills: cardTpl, creditCards: cards },
+      months: {
+        // Prior months carry differing card spends.
+        '2026-08': { id: '2026-08', banks: [{ id: 'x', name: 'IDFC' }], creditCards: [{ id: 's', cardId: 'card-hdfc', amount: 1000 }], bills: [] },
+        '2026-09': { id: '2026-09', banks: [{ id: 'y', name: 'IDFC' }], creditCards: [{ id: 's2', cardId: 'card-hdfc', amount: 3000 }], bills: [{ id: 'b1', rbId: 'rbc', amountAuto: true, amount: 0, paid: false }] },
+        '2026-10': { id: '2026-10', banks: [{ id: 'z', name: 'IDFC' }], bills: [{ id: 'b2', rbId: 'rbc', amountAuto: true, amount: 0, paid: false }] },
+      },
+    }
+    const next = syncRecurringToFutureMonths(store, { today })
+    // Sep bill derives from Aug spends (1000); Oct bill from Sep spends (3000).
+    expect(next.months['2026-09'].bills[0].amount).toBe(1000)
+    expect(next.months['2026-10'].bills[0].amount).toBe(3000)
+  })
+})
+
+describe('applyTemplatesToMonth — back-compat with rbId-less bills', () => {
+  const month = {
+    id: '2026-12',
+    banks: [{ id: 'idfc', name: 'IDFC' }],
+    bills: [
+      { id: 'old', date: '2026-12-05', name: 'Legacy Loan', bankId: 'idfc', amount: 100000, paid: true },
+    ],
+  }
+
+  it('never touches or deletes bills without an rbId', () => {
+    const templates = [{ id: 'rb1', day: 5, name: 'Home Loan', bankName: 'IDFC', amount: 100000, type: 'manual' }]
+    const bills = applyTemplatesToMonth(month, templates, {})
+    // The legacy bill survives verbatim...
+    const legacy = bills.find(b => b.id === 'old')
+    expect(legacy).toEqual(month.bills[0])
+    // ...and the template additionally materializes as a fresh rbId bill.
+    const fromTpl = bills.find(b => b.rbId === 'rb1')
+    expect(fromTpl).toMatchObject({ name: 'Home Loan', date: '2026-12-05', amountAuto: true })
+  })
+
+  it('returns manual bills untouched when there are no templates', () => {
+    const bills = applyTemplatesToMonth(month, [], {})
+    expect(bills).toEqual(month.bills)
   })
 })

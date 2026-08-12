@@ -5,7 +5,10 @@ import { useEditable } from '../context/EditModeContext.jsx'
 // A number cell that shows formatted INR when idle and a raw editable value when
 // focused. Commits on blur / Enter. inputMode="decimal" gives phones a number pad.
 // When the page is read-only it renders as static, non-clickable text.
-export function MoneyInput({ value, onChange, symbol = true, className = '' }) {
+// When `placeholder` is set and the value is falsy (0/unset), the placeholder
+// text is shown muted instead of "₹ 0" — used for card bills whose amount hasn't
+// been entered yet. The editing input is unaffected so typing real values works.
+export function MoneyInput({ value, onChange, symbol = true, className = '', placeholder = '' }) {
   const editable = useEditable()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -20,10 +23,14 @@ export function MoneyInput({ value, onChange, symbol = true, className = '' }) {
     setEditing(false)
   }
 
+  const showPlaceholder = placeholder && !value // 0, NaN, undefined, ''
+
   if (!editable) {
     return (
-      <span className={`cell-display ro money ${isNegative(value) ? 'neg' : ''} ${className}`}>
-        {formatINR(value, { withSymbol: symbol })}
+      <span
+        className={`cell-display ro money ${isNegative(value) ? 'neg' : ''} ${showPlaceholder ? 'is-placeholder' : ''} ${className}`}
+      >
+        {showPlaceholder ? placeholder : formatINR(value, { withSymbol: symbol })}
       </span>
     )
   }
@@ -49,13 +56,13 @@ export function MoneyInput({ value, onChange, symbol = true, className = '' }) {
   return (
     <button
       type="button"
-      className={`cell-display money ${isNegative(value) ? 'neg' : ''} ${className}`}
+      className={`cell-display money ${isNegative(value) ? 'neg' : ''} ${showPlaceholder ? 'is-placeholder' : ''} ${className}`}
       onClick={() => {
         setDraft(value === 0 ? '' : String(value))
         setEditing(true)
       }}
     >
-      {formatINR(value, { withSymbol: symbol })}
+      {showPlaceholder ? placeholder : formatINR(value, { withSymbol: symbol })}
     </button>
   )
 }

@@ -4,6 +4,7 @@ import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom'
 import App from './App.jsx'
 import { Dashboard } from './pages/Dashboard.jsx'
 import { SettingsPage } from './pages/SettingsPage.jsx'
+import { ManageBillsPage } from './pages/ManageBillsPage.jsx'
 import { CreditCardsPage } from './pages/CreditCardsPage.jsx'
 import { CreditCardInsightsPage } from './pages/CreditCardInsightsPage.jsx'
 import { StoreProvider } from './context/StoreContext.jsx'
@@ -20,6 +21,7 @@ const router = createHashRouter([
       { path: 'credit-cards', element: <CreditCardsPage /> },
       { path: 'credit-cards/insights', element: <CreditCardInsightsPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'manage-bills', element: <ManageBillsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

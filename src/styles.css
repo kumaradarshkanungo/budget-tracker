@@ -318,6 +318,9 @@ html, body {
 .cell-display.ro.money { font-variant-numeric: tabular-nums; }
 .money { text-align: right; font-variant-numeric: tabular-nums; }
 .neg { color: var(--neg); }
+/* Amount cells with no value yet render their placeholder text muted (e.g. a
+   credit-card bill whose amount hasn't been entered shows "Bill amount"). */
+.cell-display.is-placeholder { color: var(--muted); font-style: italic; font-weight: 500; }
 
 .computed {
   font-variant-numeric: tabular-nums; font-weight: 600;
@@ -553,27 +556,17 @@ html, body {
 .add-bank-row { display: flex; gap: 8px; align-items: center; max-width: 480px; }
 .add-bank-row .cell-input { flex: 1; }
 
-/* Repeated bills & EMIs (Settings master data) — always one line per row. */
-.recurring-list { display: flex; flex-direction: column; }
-.recurring-row {
-  display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 6px;
-  padding: 10px 0; border-bottom: 1px solid var(--line);
-}
-.recurring-row:last-child { border-bottom: none; }
-.rec-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.rec-field[data-label='Type'] { flex: 0 0 82px; }
-.rec-field[data-label='Day'] { flex: 0 0 44px; }
-.rec-field[data-label='Name'] { flex: 1 1 auto; }
-.rec-field[data-label='Card'] { flex: 1 1 auto; }
-.rec-field[data-label='Bank'] { flex: 1 1 auto; }
-.rec-field[data-label='Amount'] { flex: 0 0 92px; }
-.rec-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
-.rec-actions { flex: 0 0 auto; align-self: center; }
-.recurring-row .cell-input,
-.recurring-row .cell-display { width: 100%; min-width: 0; }
-/* Keep money/text from forcing the row wider than the viewport on phones. */
-.recurring-row .cell-input,
-.recurring-row .cell-display { padding-left: 6px; padding-right: 6px; overflow: hidden; text-overflow: ellipsis; }
+/* Repeated Bills & EMIs manager (Manage Bills & EMIs page) — uniform grid table
+   reusing the shared .thead/.trow pattern. Columns: Type | Day | Name/Card |
+   Bank | Amount | delete. Type is widened so "Credit card" never truncates. */
+.manage-table .thead, .manage-table .trow { grid-template-columns: 1fr 64px 1.6fr 1.2fr 1fr 32px; }
+.manage-table .trow .cell-input,
+.manage-table .trow .cell-display { width: 100%; min-width: 0; }
+/* Amount right-aligns to match the app's money convention (matches the read-only
+   rule at .trow .cell-display.ro.money); also align the editing input + button. */
+.manage-table .trow > span[data-label='Amount'] { text-align: right; }
+.manage-table .trow > span[data-label='Amount'] .cell-input.money,
+.manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: right; }
 
 /* Bills & EMIs "＋ Add bill" popover menu (blank bill / from credit card). */
 .add-bill-menu { position: relative; display: inline-flex; }
@@ -637,6 +630,20 @@ html, body {
   .bills-table .trow > span[data-label='Name'] { flex-basis: 100%; }
   .bills-table .trow > .paid-cell { order: -1; flex-basis: 100%; }
   .bills-table .paid-cell { justify-content: flex-start; }
+  /* Manage table: stack rows into labeled cards, Name/Card + delete full width. */
+  .manage-table .trow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 12px 0;
+  }
+  .manage-table .trow > span { flex: 1 1 40%; }
+  .manage-table .trow > span[data-label='Name'],
+  .manage-table .trow > span[data-label='Card'] { flex-basis: 100%; }
+  .manage-table .trow > .row-actions { flex-basis: 100%; }
+  .manage-table .trow > span[data-label='Amount'] { text-align: left; }
+  .manage-table .trow > span[data-label='Amount'] .cell-input.money,
+  .manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
   .trow > span { display: flex; flex-direction: column; gap: 3px; }
   .trow > span::before {
     content: attr(data-label);

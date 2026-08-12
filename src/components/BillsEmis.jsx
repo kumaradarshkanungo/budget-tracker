@@ -142,7 +142,12 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
               )}
             </span>
             <span data-label="Amount">
-              <MoneyInput value={b.amount} onChange={v => updateRow('bills', b.id, { amount: v })} />
+              <MoneyInput
+                value={b.amount}
+                onChange={v =>
+                  updateRow('bills', b.id, { amount: v, ...(b.rbId ? { amountAuto: false } : {}) })
+                }
+              />
             </span>
             <span data-label="Paid" className="paid-cell">
               <input

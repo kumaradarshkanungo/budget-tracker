@@ -24,6 +24,13 @@ const IconCard = () => (
   </svg>
 )
 
+const IconBills = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2h9l3 3v15a1 1 0 0 1-1.5.87L15 20l-1.5.87L12 20l-1.5.87L9 20l-1.5.87L6 20V2Z" />
+    <path d="M9 8h6M9 12h6M9 16h4" />
+  </svg>
+)
+
 const IconSignOut = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -35,6 +42,7 @@ const IconSignOut = () => (
 const NAV_ITEMS = [
   { label: 'Budget Tracker', path: '/', Icon: IconWallet },
   { label: 'Credit Card Spends', path: '/credit-cards', Icon: IconCard },
+  { label: 'Manage Bills & EMIs', path: '/manage-bills', Icon: IconBills },
   { label: 'Settings', path: '/settings', Icon: IconGear },
 ]
 

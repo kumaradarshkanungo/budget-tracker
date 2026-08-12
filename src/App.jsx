@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useStoreCtx } from './context/StoreContext.jsx'
 import { EditModeProvider } from './context/EditModeContext.jsx'
@@ -16,6 +16,12 @@ export default function App() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editable, setEditable] = useState(false) // page starts read-only
+
+  // Edit mode is page-local: reset to read-only whenever the route changes so
+  // toggling Edit on one page never carries over after navigating away.
+  useEffect(() => {
+    setEditable(false)
+  }, [location.pathname])
 
   // The month bar (month picker, edit toggle, backup) belongs to the dashboard
   // and the credit-card screens (spends + insights) — all operate on the active
