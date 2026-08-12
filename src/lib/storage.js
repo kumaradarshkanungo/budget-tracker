@@ -7,6 +7,24 @@
 
 const STORAGE_KEY = 'budget-tracker-v1'
 
+// Sentinel bankName for recurring-bill templates that should follow the month's
+// DEFAULT (primary) bank rather than a fixed bank name. Resolved per-month at
+// materialization (see resolveBankId), so a template tagged with this tracks
+// whichever bank is primary in each month — including future default changes.
+// The double-underscore convention won't collide with a human-typed bank name,
+// and the bank dropdown never offers it as a name.
+export const DEFAULT_BANK = '__default__'
+
+// Resolve a template's bankName against a month's banks. The DEFAULT_BANK
+// sentinel maps to that month's primary bank (dynamic, per-month); a real name
+// matches by name; anything unresolved falls back to '' (untagged) — the same
+// behavior a name with no matching bank has always had.
+function resolveBankId(bankName, banks) {
+  const list = banks || []
+  if (bankName === DEFAULT_BANK) return list.find(b => b.primary)?.id || ''
+  return list.find(b => b.name === bankName)?.id || ''
+}
+
 // Small id helper that does NOT use Math.random at module load — safe & unique enough.
 let _seq = 0
 export function uid(prefix = 'id') {
@@ -164,7 +182,8 @@ export function saveStore(store) {
 // amount — the year+month come from monthId. The day is clamped to the month's
 // last day (so day 31 in February lands on the 28th/29th). Bank is resolved by
 // NAME against the month's banks (ids are regenerated per month), falling back
-// to untagged when there's no match. New bills always start unpaid.
+// to untagged when there's no match; the DEFAULT_BANK sentinel resolves to the
+// month's primary bank instead (see resolveBankId). New bills always start unpaid.
 //
 // A template with type 'card' represents a credit-card payment: its NAME is the
 // card's name (from opts.cards) and, when the template amount is 0/blank, its
@@ -194,12 +213,12 @@ export function materializeRecurringBills(monthId, recurringBills, banks, opts =
       if (!amount) amount = sumCardSpends(prevMonth, tpl.cardId)
     }
 
-    const bank = (banks || []).find(b => b.name === tpl.bankName)
+    const bank = resolveBankId(tpl.bankName, banks)
     return {
       id: uid('b'),
       date,
       name,
-      bankId: bank?.id || '',
+      bankId: bank,
       amount,
       paid: false,
       // Provenance: rbId links the bill back to its template so template edits
@@ -279,8 +298,9 @@ export function applyTemplatesToMonth(month, recurringBills, opts = {}) {
     let name = tpl.name || ''
     if (tpl.type === 'card') name = cards.find(c => c.id === tpl.cardId)?.name || ''
 
-    // Bank re-resolved by NAME against THIS month's banks (ids differ per month).
-    const bankId = banks.find(b => b.name === tpl.bankName)?.id || ''
+    // Bank re-resolved by NAME against THIS month's banks (ids differ per
+    // month); the DEFAULT_BANK sentinel resolves to this month's primary bank.
+    const bankId = resolveBankId(tpl.bankName, banks)
 
     // Amount — preserve a manual override; else recompute from the template
     // (card templates prefetch from THIS month's prior month card spends).

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Section, IconButton } from './ui.jsx'
 import { TextInput, MoneyInput } from './Inputs.jsx'
+import { DEFAULT_BANK } from '../lib/storage.js'
 
 // "Manage Bills & EMIs" page: the master list of repeated bills & EMIs that seed
 // each month's Bills & EMIs. Set the day, name/card, bank and amount once; the
@@ -165,6 +166,7 @@ export function ManageBills({
                       onChange={e => editTemplate(r.id, { bankName: e.target.value })}
                     >
                       <option value="">—</option>
+                      <option value={DEFAULT_BANK}>Default bank</option>
                       {bankNames.map(n => (
                         <option key={n} value={n}>
                           {n}
@@ -172,7 +174,9 @@ export function ManageBills({
                       ))}
                     </select>
                   ) : (
-                    <span className="cell-display ro text">{r.bankName || '—'}</span>
+                    <span className="cell-display ro text">
+                      {r.bankName === DEFAULT_BANK ? 'Default bank' : (r.bankName || '—')}
+                    </span>
                   )}
                 </span>
                 <span data-label="Amount">

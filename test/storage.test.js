@@ -13,6 +13,7 @@ import {
   applyTemplatesToMonth,
   syncRecurringToFutureMonths,
   futureMonthIds,
+  DEFAULT_BANK,
 } from '../src/lib/storage.js'
 
 describe('month date derivation', () => {
@@ -191,6 +192,24 @@ describe('materializeRecurringBills', () => {
   it('resolves the bank by name and leaves it untagged when no bank matches', () => {
     const bills = materializeRecurringBills('2026-09', templates, banks)
     expect(bills[3]).toMatchObject({ name: 'Unknown bank', bankId: '' })
+  })
+
+  it('resolves the DEFAULT_BANK sentinel to the month\'s primary bank', () => {
+    const withPrimary = [
+      { id: 'bank-idfc', name: 'IDFC', primary: false },
+      { id: 'bank-hdfc', name: 'HDFC', primary: true },
+    ]
+    const tpl = [{ id: 'rbd', day: 3, name: 'Rent', bankName: DEFAULT_BANK, amount: 100 }]
+    expect(materializeRecurringBills('2026-09', tpl, withPrimary)[0].bankId).toBe('bank-hdfc')
+  })
+
+  it('leaves a DEFAULT_BANK bill untagged when the month has no primary bank', () => {
+    const noPrimary = [
+      { id: 'bank-idfc', name: 'IDFC', primary: false },
+      { id: 'bank-hdfc', name: 'HDFC', primary: false },
+    ]
+    const tpl = [{ id: 'rbd', day: 3, name: 'Rent', bankName: DEFAULT_BANK, amount: 100 }]
+    expect(materializeRecurringBills('2026-09', tpl, noPrimary)[0].bankId).toBe('')
   })
 
   it('always starts materialized bills unpaid', () => {
@@ -436,6 +455,23 @@ describe('applyTemplatesToMonth — back-compat with rbId-less bills', () => {
   it('returns manual bills untouched when there are no templates', () => {
     const bills = applyTemplatesToMonth(month, [], {})
     expect(bills).toEqual(month.bills)
+  })
+
+  it('resolves a DEFAULT_BANK template to each month\'s own primary bank (dynamic)', () => {
+    const tpl = [{ id: 'rbd', day: 5, name: 'Rent', bankName: DEFAULT_BANK, amount: 100, type: 'manual' }]
+    // Same template, two months whose primary bank differs → each resolves locally.
+    const monthA = {
+      id: '2026-12',
+      banks: [{ id: 'a1', name: 'IDFC', primary: true }, { id: 'a2', name: 'HDFC', primary: false }],
+      bills: [],
+    }
+    const monthB = {
+      id: '2027-01',
+      banks: [{ id: 'b1', name: 'IDFC', primary: false }, { id: 'b2', name: 'HDFC', primary: true }],
+      bills: [],
+    }
+    expect(applyTemplatesToMonth(monthA, tpl, {}).find(b => b.rbId === 'rbd').bankId).toBe('a1')
+    expect(applyTemplatesToMonth(monthB, tpl, {}).find(b => b.rbId === 'rbd').bankId).toBe('b2')
   })
 })
 
