@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { labelForMonthId } from '../lib/storage.js'
+import { labelForMonthId, currentMonthId } from '../lib/storage.js'
 
 // Month controls: switch/add/delete months via a month-only picker and show
 // sync status. (Edit mode is toggled from the app-wide floating action button;
@@ -22,6 +22,15 @@ export function MonthBar({
   // The active `month` from the store carries no label (only the entries in the
   // `months` array do). Derive it from the id so the delete prompt reads right.
   const monthLabel = month.label || labelForMonthId(month.id)
+
+  // "Jump to current month" button state. switchMonth does no validation, so we
+  // only enable the jump when the current calendar month actually exists in the
+  // list (switching to a missing month id would make the active month undefined
+  // and crash the page) and isn't already the one being viewed.
+  const nowId = currentMonthId()
+  const nowExists = months.some(m => m.id === nowId)
+  const atCurrent = month.id === nowId
+  const canJumpToCurrent = nowExists && !atCurrent
 
   function confirmAdd() {
     if (pick) addMonth(pick) // pick is "YYYY-MM" from <input type="month">
@@ -55,6 +64,21 @@ export function MonthBar({
             </option>
           ))}
         </select>
+
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => switchMonth(nowId)}
+          disabled={!canJumpToCurrent}
+          aria-label="Jump to current month"
+          title={atCurrent ? 'Already on the current month' : (nowExists ? 'Jump to current month' : 'Current month not added yet')}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+            <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
 
         {editable && (picking ? (
           <span className="month-pick">

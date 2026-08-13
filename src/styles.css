@@ -505,6 +505,8 @@ html, body {
 }
 .icon-btn:hover { background: #f0f2f4; }
 .icon-btn.danger { color: var(--neg); }
+.icon-btn:disabled { opacity: .4; cursor: default; color: var(--muted); }
+.icon-btn:disabled:hover { background: #fff; }
 
 /* ---- Swipe-to-delete (mobile only) -------------------------------------- */
 /* On desktop the wrapper is inert: .swipe-fg is display:contents so the wrapped
