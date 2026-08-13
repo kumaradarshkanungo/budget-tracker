@@ -919,13 +919,15 @@ html, body {
        instead of bleeding over and painting on top of the red Delete panel. */
     overflow: hidden;
     transition: transform 0.18s ease;
-    will-change: transform;
     /* Browser owns vertical scroll; the handler owns horizontal (and calls
        preventDefault once the swipe is locked horizontal). */
     touch-action: pan-y;
   }
-  /* No transition while the finger drags — the foreground must track instantly. */
-  .swipe-fg.dragging { transition: none; }
+  /* No transition while the finger drags — the foreground must track instantly.
+     will-change (layer promotion) is scoped to the drag ONLY: a permanently
+     promoted layer repaints out of sync with the red panel behind it during fast
+     vertical scroll, which made the panel flicker into view on closed rows. */
+  .swipe-fg.dragging { transition: none; will-change: transform; }
   .swipe-delete-panel {
     display: flex;
     position: absolute;
@@ -944,7 +946,13 @@ html, body {
     /* Not tappable until the row is open, so a stray tap on a closed row can
        never hit the (hidden, behind-fg) panel. Enabled below when .is-open. */
     pointer-events: none;
+    /* Kept out of the paint entirely on a closed, idle row — with nothing painted
+       behind the foreground there is nothing to bleed through if a compositing
+       seam appears mid-scroll. Revealed only while dragging or open (below). */
+    visibility: hidden;
   }
+  .swipe-row.is-open .swipe-delete-panel,
+  .swipe-row.is-dragging .swipe-delete-panel { visibility: visible; }
   .swipe-row.is-open .swipe-delete-panel { pointer-events: auto; }
 
   /* On mobile the swipe gesture replaces the edit-mode trash button in these 5

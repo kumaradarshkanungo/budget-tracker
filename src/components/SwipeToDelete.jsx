@@ -145,7 +145,7 @@ export function SwipeToDelete({ onDelete, disabled = false, label = 'Delete', cl
   const open = tx <= -REVEAL + 1
 
   return (
-    <div className={`swipe-row ${open ? 'is-open' : ''} ${className}`}>
+    <div className={`swipe-row ${open ? 'is-open' : ''} ${dragging ? 'is-dragging' : ''} ${className}`}>
       <button
         type="button"
         className="swipe-delete-panel"
