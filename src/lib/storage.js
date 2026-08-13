@@ -85,6 +85,20 @@ export function futureMonthIds(store, today = new Date()) {
   return Object.keys(store?.months || {}).filter(id => id > cur)
 }
 
+// Whether a recurring-income template applies to a given "YYYY-MM" month, per its
+// optional [startMonth, endMonth] window. Bounds are "YYYY-MM" strings compared
+// lexicographically (zero-padded → correct); a blank/absent bound is unbounded on
+// that side. Callers only ever pass FUTURE month ids (materialization never
+// touches the current/past month), so a blank start already means "from next
+// month onward" and a blank end means "all future months".
+export function incomeAppliesToMonth(tpl, monthId) {
+  const start = tpl?.startMonth || ''
+  const end = tpl?.endMonth || ''
+  if (start && monthId < start) return false
+  if (end && monthId > end) return false
+  return true
+}
+
 // Sum of a given card's spends in a month. Inlined here (rather than importing
 // creditCardTotal from calc.js) because calc.js imports from this module, so the
 // reverse import would create a cycle. Mirrors creditCardTotal(month, cardId).
@@ -315,18 +329,23 @@ export function materializeRecurringBills(monthId, recurringBills, banks, opts =
 }
 
 // Turn the global recurring-income templates into concrete holdings for a month.
-// Each template holds only { id, name, amount }. Materialized holdings carry an
-// riId (provenance, mirrors bills' rbId) and start UNCHECKED (excluded:false) —
-// money yet to be received, so it counts toward Total Available until the user
-// checks it (received into a bank).
-export function materializeRecurringIncomes(incomes) {
-  return (incomes || []).map(tpl => ({
-    id: uid('h'),
-    riId: tpl.id,
-    label: tpl.name || '',
-    amount: tpl.amount || 0,
-    excluded: false,
-  }))
+// Each template holds { id, name, amount } plus optional { startMonth, endMonth }
+// bounds; only templates whose window includes `monthId` are materialized (see
+// incomeAppliesToMonth). Materialized holdings carry an riId (provenance, mirrors
+// bills' rbId) and start UNCHECKED (excluded:false) — money yet to be received,
+// so it counts toward Total Available until the user checks it (received into a
+// bank). `monthId` is the target month; omitting it materializes every template
+// (unbounded), but newMonthFor always passes it.
+export function materializeRecurringIncomes(incomes, monthId) {
+  return (incomes || [])
+    .filter(tpl => incomeAppliesToMonth(tpl, monthId))
+    .map(tpl => ({
+      id: uid('h'),
+      riId: tpl.id,
+      label: tpl.name || '',
+      amount: tpl.amount || 0,
+      excluded: false,
+    }))
 }
 
 // Build a fresh month for the given "YYYY-MM" id. Carries over bank names and
@@ -347,7 +366,7 @@ export function newMonthFor(monthId, template, defaultBankName, settings, prevMo
   }
   return {
     id: monthId,
-    holdings: materializeRecurringIncomes(settings?.recurringIncomes || []),
+    holdings: materializeRecurringIncomes(settings?.recurringIncomes || [], monthId),
     banks,
     budget,
     bills: materializeRecurringBills(monthId, settings?.recurringBills || [], banks, {
@@ -437,9 +456,11 @@ export function applyTemplatesToMonth(month, recurringBills, opts = {}) {
 //   keeps its stable id and its `excluded` (checked) flag; label and amount are
 //   always re-derived from the template (templates own the amount — there is no
 //   per-month amount override for incomes).
-// - Income holdings whose template no longer exists are dropped.
+// - Income holdings whose template no longer exists — or whose template's
+//   [startMonth, endMonth] window no longer includes this month — are dropped
+//   (manual holdings and in-window incomes' `excluded` flag are still preserved).
 export function applyIncomesToMonth(month, incomes) {
-  const templates = incomes || []
+  const templates = (incomes || []).filter(tpl => incomeAppliesToMonth(tpl, month?.id))
   const tplIds = new Set(templates.map(t => t.id))
   const existing = month?.holdings || []
   const manual = existing.filter(h => !h.riId)

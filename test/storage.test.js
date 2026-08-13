@@ -15,6 +15,7 @@ import {
   futureMonthIds,
   materializeRecurringIncomes,
   applyIncomesToMonth,
+  incomeAppliesToMonth,
   selectStore,
   mergeStore,
   PER_MONTH_KEYS,
@@ -663,6 +664,40 @@ describe('futureMonthIds', () => {
   })
 })
 
+describe('incomeAppliesToMonth', () => {
+  it('is unbounded when both bounds are blank/absent', () => {
+    expect(incomeAppliesToMonth({ id: 'ri' }, '2026-09')).toBe(true)
+    expect(incomeAppliesToMonth({ startMonth: '', endMonth: '' }, '2020-01')).toBe(true)
+    // A missing monthId is also treated as unbounded (no caller omits it, but be safe).
+    expect(incomeAppliesToMonth({ id: 'ri' }, undefined)).toBe(true)
+  })
+
+  it('respects a start-only bound (inclusive)', () => {
+    const tpl = { startMonth: '2026-11' }
+    expect(incomeAppliesToMonth(tpl, '2026-10')).toBe(false)
+    expect(incomeAppliesToMonth(tpl, '2026-11')).toBe(true) // inclusive
+    expect(incomeAppliesToMonth(tpl, '2026-12')).toBe(true)
+  })
+
+  it('respects an end-only bound (inclusive)', () => {
+    const tpl = { endMonth: '2026-10' }
+    expect(incomeAppliesToMonth(tpl, '2026-09')).toBe(true)
+    expect(incomeAppliesToMonth(tpl, '2026-10')).toBe(true) // inclusive
+    expect(incomeAppliesToMonth(tpl, '2026-11')).toBe(false)
+  })
+
+  it('respects a both-sided window and compares "YYYY-MM" lexicographically', () => {
+    const tpl = { startMonth: '2026-09', endMonth: '2027-01' }
+    expect(incomeAppliesToMonth(tpl, '2026-08')).toBe(false)
+    expect(incomeAppliesToMonth(tpl, '2026-09')).toBe(true)
+    expect(incomeAppliesToMonth(tpl, '2026-12')).toBe(true)
+    expect(incomeAppliesToMonth(tpl, '2027-01')).toBe(true)
+    expect(incomeAppliesToMonth(tpl, '2027-02')).toBe(false)
+    // Zero-padded months compare correctly as strings ("2026-09" < "2026-10").
+    expect(incomeAppliesToMonth({ startMonth: '2026-09' }, '2026-10')).toBe(true)
+  })
+})
+
 describe('materializeRecurringIncomes', () => {
   it('turns income templates into unchecked holdings stamped with riId', () => {
     const incomes = [
@@ -683,6 +718,20 @@ describe('materializeRecurringIncomes', () => {
 
   it('defaults a blank name/amount to empty/0', () => {
     expect(materializeRecurringIncomes([{ id: 'ri' }])[0]).toMatchObject({ label: '', amount: 0, excluded: false })
+  })
+
+  it('only materializes templates whose [startMonth, endMonth] window includes monthId', () => {
+    const incomes = [
+      { id: 'unbounded', name: 'Salary', amount: 100 },
+      { id: 'starts-nov', name: 'Bonus', amount: 200, startMonth: '2026-11' },
+      { id: 'ends-oct', name: 'Freelance', amount: 300, endMonth: '2026-10' },
+    ]
+    // September: unbounded + ends-oct apply; starts-nov does not yet.
+    expect(materializeRecurringIncomes(incomes, '2026-09').map(h => h.riId).sort())
+      .toEqual(['ends-oct', 'unbounded'])
+    // December: unbounded + starts-nov apply; ends-oct has passed.
+    expect(materializeRecurringIncomes(incomes, '2026-12').map(h => h.riId).sort())
+      .toEqual(['starts-nov', 'unbounded'])
   })
 })
 
@@ -731,6 +780,37 @@ describe('applyIncomesToMonth', () => {
     expect(out[0].id).toBe('m1')
     expect(out.slice(1).every(h => h.riId)).toBe(true)
   })
+
+  it('drops an income whose window does not include this month, preserving others', () => {
+    // ri1 starts in November; for a September month it must not appear, while an
+    // unbounded income (ri2) and a manual holding survive.
+    const bounded = [
+      { id: 'ri1', name: 'Bonus', amount: 50000, startMonth: '2026-11' },
+      { id: 'ri2', name: 'Rent', amount: 15000 },
+    ]
+    const month = {
+      id: '2026-09',
+      holdings: [
+        { id: 'm1', label: 'Monika', amount: 150000 },
+        { id: 'sep-bonus', riId: 'ri1', label: 'Bonus', amount: 50000, excluded: true },
+        { id: 'sep-rent', riId: 'ri2', label: 'Rent', amount: 15000, excluded: false },
+      ],
+    }
+    const out = applyIncomesToMonth(month, bounded)
+    expect(out.some(h => h.riId === 'ri1')).toBe(false) // before its start → dropped
+    expect(out.find(h => h.id === 'm1')).toMatchObject({ label: 'Monika' }) // manual kept
+    expect(out.find(h => h.riId === 'ri2')).toMatchObject({ id: 'sep-rent', excluded: false })
+  })
+
+  it('keeps an in-window income holding, preserving its excluded flag', () => {
+    const bounded = [{ id: 'ri1', name: 'Bonus', amount: 50000, startMonth: '2026-11', endMonth: '2026-12' }]
+    const month = {
+      id: '2026-11',
+      holdings: [{ id: 'nov-bonus', riId: 'ri1', label: 'Bonus', amount: 1, excluded: true }],
+    }
+    const out = applyIncomesToMonth(month, bounded)
+    expect(out.find(h => h.riId === 'ri1')).toMatchObject({ id: 'nov-bonus', amount: 50000, excluded: true })
+  })
 })
 
 describe('newMonthFor seeds recurring incomes', () => {
@@ -747,6 +827,22 @@ describe('newMonthFor seeds recurring incomes', () => {
   it('creates no holdings when there are no income templates', () => {
     expect(newMonthFor('2026-09', template, 'IDFC', { recurringIncomes: [] }).holdings).toEqual([])
     expect(newMonthFor('2026-09', template, 'IDFC', undefined).holdings).toEqual([])
+  })
+
+  it('seeds only incomes whose window includes the new month', () => {
+    const settings = {
+      defaultBankName: 'IDFC',
+      recurringIncomes: [
+        { id: 'ri1', name: 'Salary', amount: 50000 }, // unbounded
+        { id: 'ri2', name: 'Bonus', amount: 20000, startMonth: '2026-11' }, // not yet in Sep
+      ],
+    }
+    // September is before ri2's start → only ri1 seeds.
+    const sep = newMonthFor('2026-09', template, 'IDFC', settings)
+    expect(sep.holdings.map(h => h.riId).sort()).toEqual(['ri1'])
+    // November includes both.
+    const nov = newMonthFor('2026-11', template, 'IDFC', settings)
+    expect(nov.holdings.map(h => h.riId).sort()).toEqual(['ri1', 'ri2'])
   })
 })
 
@@ -796,6 +892,62 @@ describe('syncRecurringToFutureMonths — recurring incomes', () => {
     store.settings.recurringIncomes = []
     const next = syncRecurringToFutureMonths(store, { today })
     expect(next.months['2026-09'].holdings.map(h => h.id)).toEqual(['sep-m'])
+  })
+})
+
+describe('syncRecurringToFutureMonths — recurring income month bounds', () => {
+  const today = new Date(2026, 7, 15) // August 2026 → currentMonthId '2026-08'
+
+  // Past (Jul), current (Aug), and three future months (Sep/Oct/Nov). Each future
+  // month already carries a materialized ri1 holding so we can watch bounds
+  // add/remove it. The past month carries one too, to prove it's never touched.
+  const makeStore = incomes => ({
+    activeMonthId: '2026-08',
+    settings: { recurringBills: [], recurringIncomes: incomes },
+    months: {
+      '2026-07': { id: '2026-07', banks: [], bills: [], holdings: [{ id: 'jul-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false }] },
+      '2026-08': { id: '2026-08', banks: [], bills: [], holdings: [{ id: 'aug-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false }] },
+      '2026-09': { id: '2026-09', banks: [], bills: [], holdings: [{ id: 'sep-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false }] },
+      '2026-10': { id: '2026-10', banks: [], bills: [], holdings: [{ id: 'oct-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false }] },
+      '2026-11': { id: '2026-11', banks: [], bills: [], holdings: [{ id: 'nov-i', riId: 'ri1', label: 'Salary', amount: 50000, excluded: false }] },
+    },
+  })
+
+  const hasRi1 = (store, id) => store.months[id].holdings.some(h => h.riId === 'ri1')
+
+  it('a startMonth removes the income from earlier future months and keeps it from start onward', () => {
+    const store = makeStore([{ id: 'ri1', name: 'Salary', amount: 50000, startMonth: '2026-11' }])
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(hasRi1(next, '2026-09')).toBe(false)
+    expect(hasRi1(next, '2026-10')).toBe(false)
+    expect(hasRi1(next, '2026-11')).toBe(true)
+    // Past and current months are never touched (same reference).
+    expect(next.months['2026-07']).toBe(store.months['2026-07'])
+    expect(next.months['2026-08']).toBe(store.months['2026-08'])
+  })
+
+  it('an endMonth keeps the income through end and drops it after', () => {
+    const store = makeStore([{ id: 'ri1', name: 'Salary', amount: 50000, endMonth: '2026-10' }])
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(hasRi1(next, '2026-09')).toBe(true)
+    expect(hasRi1(next, '2026-10')).toBe(true)
+    expect(hasRi1(next, '2026-11')).toBe(false)
+  })
+
+  it('a both-sided window applies the income only inside it', () => {
+    const store = makeStore([{ id: 'ri1', name: 'Salary', amount: 50000, startMonth: '2026-10', endMonth: '2026-10' }])
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(hasRi1(next, '2026-09')).toBe(false)
+    expect(hasRi1(next, '2026-10')).toBe(true)
+    expect(hasRi1(next, '2026-11')).toBe(false)
+  })
+
+  it('a blank-bounds income still applies to every future month (unbounded)', () => {
+    const store = makeStore([{ id: 'ri1', name: 'Salary', amount: 50000, startMonth: '', endMonth: '' }])
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(hasRi1(next, '2026-09')).toBe(true)
+    expect(hasRi1(next, '2026-10')).toBe(true)
+    expect(hasRi1(next, '2026-11')).toBe(true)
   })
 })
 

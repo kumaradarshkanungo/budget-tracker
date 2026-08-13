@@ -3,7 +3,7 @@ import { Section, IconButton } from './ui.jsx'
 import { TextInput, MoneyInput } from './Inputs.jsx'
 import { SwipeToDelete } from './SwipeToDelete.jsx'
 import { useEditable } from '../context/EditModeContext.jsx'
-import { DEFAULT_BANK } from '../lib/storage.js'
+import { DEFAULT_BANK, labelForMonthId } from '../lib/storage.js'
 
 // "Manage Bills & EMIs" page: the master lists that seed each month — Recurring
 // Bills & EMIs (loans, EMIs, SIPs, card payments) and Recurring Incomes (salary,
@@ -210,6 +210,8 @@ export function ManageBills({
           <div className="thead">
             <span>Name</span>
             <span>Amount</span>
+            <span>Start</span>
+            <span>End</span>
             <span />
           </div>
           {recurringIncomes.map(r => (
@@ -224,6 +226,34 @@ export function ManageBills({
               </span>
               <span data-label="Amount">
                 <MoneyInput value={r.amount} onChange={v => editIncome(r.id, { amount: v })} />
+              </span>
+              <span data-label="Start">
+                {editable ? (
+                  <input
+                    type="month"
+                    className="cell-input"
+                    value={r.startMonth || ''}
+                    onChange={e => editIncome(r.id, { startMonth: e.target.value })}
+                  />
+                ) : (
+                  <span className="cell-display ro text">
+                    {r.startMonth ? labelForMonthId(r.startMonth) : '—'}
+                  </span>
+                )}
+              </span>
+              <span data-label="End">
+                {editable ? (
+                  <input
+                    type="month"
+                    className="cell-input"
+                    value={r.endMonth || ''}
+                    onChange={e => editIncome(r.id, { endMonth: e.target.value })}
+                  />
+                ) : (
+                  <span className="cell-display ro text">
+                    {r.endMonth ? labelForMonthId(r.endMonth) : '—'}
+                  </span>
+                )}
               </span>
               <span className="row-actions">
                 <IconButton label="Delete recurring income" variant="danger" onClick={() => handleDeleteIncome(r)} />

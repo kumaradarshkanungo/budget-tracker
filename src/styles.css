@@ -712,9 +712,10 @@ html, body {
    Incomes" section. */
 .mb-subhead { margin: 22px 0 6px; font-size: 15px; font-weight: 700; }
 .mb-subhead:first-of-type { margin-top: 8px; }
-/* Recurring Incomes manager — Name | Amount | delete. Amount right-aligned like
-   every other money cell in the app. */
-.incomes-table .thead, .incomes-table .trow { grid-template-columns: 1.6fr 1fr 32px; }
+/* Recurring Incomes manager — Name | Amount | Start | End | delete. Amount
+   right-aligned like every other money cell in the app; Start/End are optional
+   "YYYY-MM" month pickers (blank = from-next-month / all-future). */
+.incomes-table .thead, .incomes-table .trow { grid-template-columns: 1.6fr 1fr 1.1fr 1.1fr 32px; }
 .incomes-table .trow .cell-input,
 .incomes-table .trow .cell-display { width: 100%; min-width: 0; }
 .incomes-table .trow > span[data-label='Amount'] { text-align: right; }
@@ -833,8 +834,9 @@ html, body {
   .manage-table .trow > span[data-label='Amount'] { text-align: left; }
   .manage-table .trow > span[data-label='Amount'] .cell-input.money,
   .manage-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
-  /* Incomes table: Name | Amount side by side on one line; delete (edit mode
-     only) drops to its own full-width row below. */
+  /* Incomes table: Name | Amount on line 1, Start | End on line 2 (the 1fr 1fr
+     grid flows the four data cells two-per-row); delete (edit mode only) drops to
+     its own full-width row below. */
   .incomes-table .trow {
     display: grid;
     grid-template-columns: 1fr 1fr;

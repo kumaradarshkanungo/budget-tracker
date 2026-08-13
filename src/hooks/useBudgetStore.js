@@ -321,12 +321,14 @@ export function useBudgetStore(userId) {
   }, [])
 
   // ---- Recurring incomes (global master list in settings) ---------------
-  // Templates hold { id, name, amount } only. Materialized into a month's
-  // holdings when the month is created (newMonthFor); add/update/delete here
-  // also re-syncs them into every already-created FUTURE month
-  // (syncRecurringToFutureMonths), preserving each holding's checked (excluded)
-  // flag and any manual (non-income) holdings. Toggling a holding's checkbox
-  // reuses the generic updateRow('holdings', id, { excluded }).
+  // Templates hold { id, name, amount } plus optional { startMonth, endMonth }
+  // "YYYY-MM" bounds (blank = unbounded). Materialized into a month's holdings
+  // when the month is created (newMonthFor) — only for months inside the
+  // [startMonth, endMonth] window; add/update/delete here also re-syncs them into
+  // every already-created FUTURE month (syncRecurringToFutureMonths), preserving
+  // each holding's checked (excluded) flag and any manual (non-income) holdings.
+  // Toggling a holding's checkbox reuses the generic updateRow('holdings', id,
+  // { excluded }).
   const addRecurringIncome = useCallback((tpl = {}) => {
     setStore(prev => {
       const next = {
@@ -335,7 +337,7 @@ export function useBudgetStore(userId) {
           ...(prev.settings || {}),
           recurringIncomes: [
             ...((prev.settings || {}).recurringIncomes || []),
-            { id: uid('ri'), name: '', amount: 0, ...tpl },
+            { id: uid('ri'), name: '', amount: 0, startMonth: '', endMonth: '', ...tpl },
           ],
         },
       }
