@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="bt-logo-title">
+  <title id="bt-logo-title">Budget Tracker</title>
+  <defs>
+    <!-- Brand teal tile gradient — matches .app-head / .drawer-brand (135deg teal → #227e71). -->
+    <linearGradient id="bt-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3aa89a"/>
+      <stop offset="0.55" stop-color="#2f9e8f"/>
+      <stop offset="1" stop-color="#227e71"/>
+    </linearGradient>
+    <!-- Soft top sheen so the tile reads as a rounded coin/chip rather than flat. -->
+    <linearGradient id="bt-sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded-square brand tile. -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bt-tile)"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bt-sheen)"/>
+
+  <!-- Thin inner ring gives the mark a minted-coin edge. -->
+  <rect x="6.5" y="6.5" width="51" height="51" rx="11.5" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5"/>
+
+  <!-- Rupee glyph. Rendered as the real Unicode ₹ in the app's system font stack
+       so the shape is always correct and scales identically from 16px (favicon)
+       to 1024px (iOS icon). text-anchor centers it; the y baseline is tuned so
+       the glyph sits optically centered in the tile. -->
+  <text x="32" y="45.5" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="42" font-weight="700" fill="#ffffff">&#8377;</text>
+</svg>

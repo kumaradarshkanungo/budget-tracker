@@ -12,6 +12,16 @@ export function AppHeader({ auth, onNavigate, onToggleMenu, hidden = false }) {
 
   return (
     <header className={`app-head ${hidden ? 'is-hidden' : ''}`}>
+      {/* Brand mark. Relative src works under Vite base:'./'. Clicking it goes
+          home, matching the greeting. */}
+      <img
+        src="logo.svg"
+        alt="Budget Tracker"
+        className="app-logo"
+        width="30"
+        height="30"
+        onClick={() => onNavigate('/')}
+      />
       <button
         type="button"
         className="hamburger-btn"

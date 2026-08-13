@@ -4,10 +4,71 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#2f9e8f" />
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <link rel="apple-touch-icon" href="logo.svg" />
+    <meta name="apple-mobile-web-app-title" content="Budget Tracker" />
     <title>Budget Tracker</title>
+    <!-- Critical CSS for the pre-mount splash. Inlined so it paints before the JS
+         bundle and styles.css load. The splash markup lives inside #root, so
+         React's first render replaces it automatically once the app mounts —
+         no teardown code needed; it covers the whole load + auth window. -->
+    <style>
+      #bt-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: linear-gradient(135deg, #2f9e8f, #227e71);
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #bt-splash .bt-splash-logo {
+        width: 96px;
+        height: 96px;
+        display: block;
+        filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.22));
+        animation: bt-splash-pop 0.5s ease-out both;
+      }
+      #bt-splash .bt-splash-name {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        opacity: 0.96;
+      }
+      #bt-splash .bt-splash-spin {
+        width: 26px;
+        height: 26px;
+        margin-top: 4px;
+        border: 3px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: bt-splash-rot 0.8s linear infinite;
+      }
+      @keyframes bt-splash-rot { to { transform: rotate(360deg); } }
+      @keyframes bt-splash-pop {
+        from { transform: scale(0.85); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #bt-splash .bt-splash-logo { animation: none; }
+        #bt-splash .bt-splash-spin { animation-duration: 1.4s; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-mount splash: shown until React replaces #root's children on mount. -->
+      <div id="bt-splash" role="status" aria-live="polite" aria-label="Loading Budget Tracker">
+        <img class="bt-splash-logo" src="logo.svg" alt="" />
+        <div class="bt-splash-name">Budget Tracker</div>
+        <div class="bt-splash-spin" aria-hidden="true"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
