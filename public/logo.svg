@@ -1,31 +1,69 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="bt-logo-title">
-  <title id="bt-logo-title">Budget Tracker</title>
+  <title id="bt-logo-title">Budget Tracker Premium</title>
   <defs>
-    <!-- Brand teal tile gradient — matches .app-head / .drawer-brand (135deg teal → #227e71). -->
-    <linearGradient id="bt-tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3aa89a"/>
-      <stop offset="0.55" stop-color="#2f9e8f"/>
-      <stop offset="1" stop-color="#227e71"/>
+    <linearGradient id="bg" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#56d2c1"/>
+      <stop offset="0.38" stop-color="#2fb6a4"/>
+      <stop offset="0.72" stop-color="#168f82"/>
+      <stop offset="1" stop-color="#09665f"/>
     </linearGradient>
-    <!-- Soft top sheen so the tile reads as a rounded coin/chip rather than flat. -->
-    <linearGradient id="bt-sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="edge" x1="10" y1="5" x2="55" y2="59" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#eafffb" stop-opacity=".95"/>
+      <stop offset=".32" stop-color="#8ff1e5" stop-opacity=".65"/>
+      <stop offset=".7" stop-color="#0b665f" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#073e3a"/>
     </linearGradient>
+    <linearGradient id="silver" x1="22" y1="18" x2="43" y2="49" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".42" stop-color="#e8fffb"/>
+      <stop offset=".72" stop-color="#b9d9d5"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b7fff3" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#51d9c6" stop-opacity=".15"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".32"/>
+      <stop offset=".45" stop-color="#ffffff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#003f3a" flood-opacity=".55"/>
+    </filter>
+    <filter id="glyphShadow" x="-40%" y="-40%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.1" flood-color="#003f3a" flood-opacity=".8"/>
+    </filter>
+    <clipPath id="clip"><rect x="2" y="2" width="60" height="60" rx="15"/></clipPath>
   </defs>
 
-  <!-- Rounded-square brand tile. -->
-  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bt-tile)"/>
-  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bt-sheen)"/>
+  <!-- Premium rounded-square body -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#064e49" filter="url(#shadow)"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="14.5" fill="url(#bg)" stroke="url(#edge)" stroke-width="1.5"/>
+  <rect x="5.5" y="5.5" width="53" height="53" rx="12" fill="none" stroke="#eafffb" stroke-opacity=".45" stroke-width="1"/>
+  <rect x="2.5" y="2.5" width="59" height="29" rx="14.5" fill="url(#shine)" clip-path="url(#clip)"/>
 
-  <!-- Thin inner ring gives the mark a minted-coin edge. -->
-  <rect x="6.5" y="6.5" width="51" height="51" rx="11.5" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5"/>
+  <!-- Subtle financial growth bars -->
+  <g opacity=".62" filter="url(#glyphShadow)">
+    <rect x="9.5" y="47" width="5.5" height="7" rx="1.2" fill="url(#bar)"/>
+    <rect x="16.5" y="43" width="5.5" height="11" rx="1.2" fill="url(#bar)"/>
+    <rect x="23.5" y="39" width="5.5" height="15" rx="1.2" fill="url(#bar)"/>
+    <rect x="30.5" y="34" width="5.5" height="20" rx="1.2" fill="url(#bar)"/>
+    <rect x="37.5" y="29" width="5.5" height="25" rx="1.2" fill="url(#bar)"/>
+  </g>
 
-  <!-- Rupee glyph. Rendered as the real Unicode ₹ in the app's system font stack
-       so the shape is always correct and scales identically from 16px (favicon)
-       to 1024px (iOS icon). text-anchor centers it; the y baseline is tuned so
-       the glyph sits optically centered in the tile. -->
-  <text x="32" y="45.5" text-anchor="middle"
+  <!-- Upward trend line -->
+  <path d="M9 49 C18 48, 25 45, 32 40 S43 31, 51 20" fill="none" stroke="#bafff3" stroke-opacity=".72" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M46.8 20.8 L51.3 19.2 L50.1 23.8" fill="none" stroke="#bafff3" stroke-opacity=".78" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Raised metallic rupee mark -->
+  <text x="32" y="46" text-anchor="middle"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
-        font-size="42" font-weight="700" fill="#ffffff">&#8377;</text>
+        font-size="41" font-weight="800" fill="#003f3a" opacity=".8" transform="translate(0,1.8)" filter="url(#glyphShadow)">&#8377;</text>
+  <text x="32" y="46" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="41" font-weight="800" fill="url(#silver)" stroke="#ffffff" stroke-opacity=".7" stroke-width=".45" filter="url(#glyphShadow)">&#8377;</text>
+
+  <!-- Tiny specular highlight -->
+  <path d="M13 10.5 H31" stroke="#ffffff" stroke-opacity=".52" stroke-width="1.2" stroke-linecap="round"/>
 </svg>
