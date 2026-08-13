@@ -186,7 +186,29 @@ export function normalizeStore(store) {
   return { ...store, settings, months }
 }
 
-// The per-month data groups a selective export/import operates on. `id` is
+// ---- Edit-session snapshot / discard -----------------------------------
+// Edit mode (the FAB Edit → Cancel/Save flow) captures a snapshot of the whole
+// store when Edit is tapped so Cancel — and navigating away — can DISCARD every
+// change made during the session. The store is plain JSON (strings/numbers/
+// arrays/objects), so a structuredClone (or JSON round trip) is a lossless,
+// fully-independent deep copy: later mutations to the live store never touch it.
+export function snapshotStore(store) {
+  return typeof structuredClone === 'function'
+    ? structuredClone(store)
+    : JSON.parse(JSON.stringify(store))
+}
+
+// Reconstruct the store to restore on Cancel. Everything reverts to the snapshot
+// EXCEPT the active month: switching months mid-edit isn't an "edit", so we keep
+// whichever month the user is currently viewing (pass the live activeMonthId).
+// Omit `keepActiveMonthId` (or pass falsy) to restore the snapshot verbatim —
+// used by navigate-away, which is leaving the page anyway.
+export function restoredStore(snapshot, keepActiveMonthId) {
+  if (!snapshot) return snapshot
+  return keepActiveMonthId ? { ...snapshot, activeMonthId: keepActiveMonthId } : snapshot
+}
+
+
 // always carried (it's the row/month identity), never a selectable group.
 export const PER_MONTH_KEYS = ['holdings', 'banks', 'budget', 'bills', 'creditCards']
 

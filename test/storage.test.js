@@ -16,6 +16,8 @@ import {
   materializeRecurringIncomes,
   applyIncomesToMonth,
   incomeAppliesToMonth,
+  snapshotStore,
+  restoredStore,
   selectStore,
   mergeStore,
   PER_MONTH_KEYS,
@@ -1100,5 +1102,64 @@ describe('mergeStore (merge import)', () => {
     const merged = mergeStore(current, { settings: { spendCategories: [{ id: 'sc2', name: 'Travel' }] } })
     expect(merged.months).toEqual(current.months)
     expect(merged.settings.spendCategories.map(c => c.id).sort()).toEqual(['sc1', 'sc2'])
+  })
+})
+
+// The edit-session snapshot/discard used by the FAB Cancel + navigate-away flow.
+describe('snapshotStore / restoredStore (edit-mode discard)', () => {
+  it('snapshots a deep, independent copy — later mutations never touch it', () => {
+    const store = backupFixture()
+    const snap = snapshotStore(store)
+    expect(snap).toEqual(store) // same data
+    expect(snap).not.toBe(store) // different reference
+    // Mutate the live store the way inline edits do (nested arrays/objects).
+    const firstMonthId = Object.keys(store.months)[0]
+    store.months[firstMonthId].banks.push({ id: 'bankX', name: 'Injected', actual: 999 })
+    store.settings.recurringIncomes.push({ id: 'riX', name: 'Bonus', amount: 5000 })
+    store.settings.defaultBankName = 'MUTATED'
+    // The snapshot is unaffected by any of those nested mutations.
+    expect(snap.months[firstMonthId].banks.some(b => b.id === 'bankX')).toBe(false)
+    expect(snap.settings.recurringIncomes.some(r => r.id === 'riX')).toBe(false)
+    expect(snap.settings.defaultBankName).not.toBe('MUTATED')
+  })
+
+  it('restores every field from the snapshot, discarding edits', () => {
+    const before = backupFixture()
+    const snap = snapshotStore(before)
+    const edited = snapshotStore(before)
+    const firstMonthId = Object.keys(edited.months)[0]
+    edited.months[firstMonthId].banks[0].actual = 123456
+    edited.settings.recurringIncomes.push({ id: 'riX', name: 'Bonus', amount: 5000 })
+    // Cancel = restore the snapshot verbatim → back to the pre-edit state.
+    const restored = restoredStore(snap)
+    expect(restored).toEqual(before)
+    expect(restored.months[firstMonthId].banks[0].actual).toBe(before.months[firstMonthId].banks[0].actual)
+    expect(restored.settings.recurringIncomes.some(r => r.id === 'riX')).toBe(false)
+  })
+
+  it('preserves the live active month on Cancel (switching months is not an edit)', () => {
+    const store = backupFixture()
+    const snap = snapshotStore(store) // snapshot taken while on month A
+    const ids = Object.keys(store.months)
+    const otherMonth = ids.find(id => id !== store.activeMonthId) || ids[0]
+    // Cancel while now viewing a different month → keep that month, revert data.
+    const restored = restoredStore(snap, otherMonth)
+    expect(restored.activeMonthId).toBe(otherMonth)
+    expect(restored.months).toEqual(snap.months)
+    expect(restored.settings).toEqual(snap.settings)
+  })
+
+  it('restores verbatim (including active month) when no month is passed — the navigate-away case', () => {
+    const store = backupFixture()
+    const snap = snapshotStore(store)
+    const restored = restoredStore(snap)
+    expect(restored.activeMonthId).toBe(snap.activeMonthId)
+    expect(restored).toEqual(snap)
+  })
+
+  it('is a no-op on a missing snapshot (guards the mount / post-Save case)', () => {
+    expect(restoredStore(null)).toBe(null)
+    expect(restoredStore(undefined)).toBe(undefined)
+    expect(restoredStore(null, '2026-08')).toBe(null)
   })
 })

@@ -8,6 +8,7 @@ import { AppHeader } from './components/AppHeader.jsx'
 import { NavDrawer } from './components/NavDrawer.jsx'
 import { FabMenu } from './components/FabMenu.jsx'
 import { Login } from './components/Login.jsx'
+import { snapshotStore, restoredStore } from './lib/storage.js'
 
 // Mobile-only "hide on scroll down, reveal on scroll up" for the sticky header.
 // Returns a boolean the header uses to slide itself out of view. Desktop
@@ -61,10 +62,53 @@ export default function App() {
   const [editable, setEditable] = useState(false) // page starts read-only
   const headerHidden = useHideOnScroll()
 
-  // Edit mode is page-local: reset to read-only whenever the route changes so
-  // toggling Edit on one page never carries over after navigating away.
-  useEffect(() => {
+  // Edit mode captures a deep store snapshot when Edit is tapped so Cancel (and
+  // navigating away) can DISCARD every change made during the session. Refs, not
+  // state: the snapshot must be captured exactly once at edit-enter (App
+  // re-renders on every keystroke), and the route-change effect below reads
+  // editingRef — which is closure-stable across a navigation, unlike `editable`.
+  const editSnapshot = useRef(null)
+  const editingRef = useRef(false)
+
+  // Enter edit mode: snapshot the current store once, then unlock the fields.
+  function enterEdit() {
+    editSnapshot.current = snapshotStore(s.store)
+    editingRef.current = true
+    setEditable(true)
+  }
+
+  // Save: keep the live edits. Clear the snapshot synchronously so a later
+  // navigation can't restore stale data, then leave edit mode.
+  function saveEdit() {
+    editingRef.current = false
+    editSnapshot.current = null
     setEditable(false)
+  }
+
+  // Cancel: discard everything since Edit by restoring the snapshot. Preserve the
+  // currently-viewed month (switching months mid-edit isn't an "edit", so don't
+  // snap it back). Clear refs synchronously so the route effect can't double-restore.
+  function cancelEdit() {
+    if (editingRef.current && editSnapshot.current) {
+      s.restoreStore(restoredStore(editSnapshot.current, s.store.activeMonthId))
+    }
+    editingRef.current = false
+    editSnapshot.current = null
+    setEditable(false)
+  }
+
+  // Edit mode is page-local: leaving the page resets to read-only. If an edit
+  // session is open (editingRef), navigating away DISCARDS it by restoring the
+  // snapshot. Guarded on the ref + snapshot, so this never fires on initial mount
+  // or after Save/Cancel already cleared the session.
+  useEffect(() => {
+    if (editingRef.current && editSnapshot.current) {
+      s.restoreStore(restoredStore(editSnapshot.current))
+      editingRef.current = false
+      editSnapshot.current = null
+    }
+    setEditable(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname])
 
   // The month bar (month picker, add/delete month, backup) belongs to the
@@ -119,9 +163,9 @@ export default function App() {
           {showFab && (
             <FabMenu
               editable={editable}
-              onToggleEdit={() => setEditable(e => !e)}
-              onSave={() => setEditable(false)}
-              onCancel={() => setEditable(false)}
+              onToggleEdit={enterEdit}
+              onSave={saveEdit}
+              onCancel={cancelEdit}
             />
           )}
         </EditModeProvider>

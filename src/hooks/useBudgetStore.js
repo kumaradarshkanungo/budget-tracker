@@ -429,6 +429,15 @@ export function useBudgetStore(userId) {
     })
   }, [])
 
+  // Replace the entire store. Used by edit-mode Cancel / navigate-away to DISCARD
+  // all edits made since Edit was tapped: the caller passes a deep snapshot taken
+  // when edit mode was entered. Routing through setStore re-runs the persist
+  // effect (localStorage immediately + debounced remote save), so the discard is
+  // durable across reload and devices.
+  const restoreStore = useCallback(snapshot => {
+    if (snapshot) setStore(snapshot)
+  }, [])
+
   // ---- Backup: export / import JSON --------------------------------------
   const exportJSON = useCallback(() => JSON.stringify(store, null, 2), [store])
   // Selective export: filter to chosen months / data groups / global settings.
@@ -482,6 +491,7 @@ export function useBudgetStore(userId) {
     switchMonth,
     addMonth,
     deleteMonth,
+    restoreStore,
     exportJSON,
     exportSelectionJSON,
     importJSON,
