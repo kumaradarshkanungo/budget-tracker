@@ -27,7 +27,20 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   const [modalOpen, setModalOpen] = useState(false)
   const [draft, setDraft] = useState(emptyDraft)
 
-  const spends = (month.creditCards || []).filter(s => !selectedCard || s.cardId === selectedCard)
+  // Show spends sorted by date ascending (ISO YYYY-MM-DD strings sort lexically);
+  // undated rows sort last so they don't jump to the top. Mirrors the EMIs/bills
+  // "sort by day ascending" convention.
+  const spends = (month.creditCards || [])
+    .filter(s => !selectedCard || s.cardId === selectedCard)
+    .slice()
+    .sort((a, b) => {
+      const da = a.date || ''
+      const db = b.date || ''
+      if (!da && !db) return 0
+      if (!da) return 1
+      if (!db) return -1
+      return da.localeCompare(db)
+    })
   const total = creditCardTotal(month, selectedCard)
 
   const cardName = id => cards.find(c => c.id === id)?.name || '(deleted)'
