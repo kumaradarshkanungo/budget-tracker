@@ -229,12 +229,25 @@ export function ManageBills({
               </span>
               <span data-label="Start">
                 {editable ? (
-                  <input
-                    type="month"
-                    className="cell-input"
-                    value={r.startMonth || ''}
-                    onChange={e => editIncome(r.id, { startMonth: e.target.value })}
-                  />
+                  <span className="month-field">
+                    <input
+                      type="month"
+                      className="cell-input"
+                      value={r.startMonth || ''}
+                      onChange={e => editIncome(r.id, { startMonth: e.target.value })}
+                    />
+                    {r.startMonth && (
+                      <button
+                        type="button"
+                        className="month-clear"
+                        aria-label="Clear start month"
+                        title="Clear start month"
+                        onClick={() => editIncome(r.id, { startMonth: '' })}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </span>
                 ) : (
                   <span className="cell-display ro text">
                     {r.startMonth ? labelForMonthId(r.startMonth) : '—'}
@@ -243,12 +256,25 @@ export function ManageBills({
               </span>
               <span data-label="End">
                 {editable ? (
-                  <input
-                    type="month"
-                    className="cell-input"
-                    value={r.endMonth || ''}
-                    onChange={e => editIncome(r.id, { endMonth: e.target.value })}
-                  />
+                  <span className="month-field">
+                    <input
+                      type="month"
+                      className="cell-input"
+                      value={r.endMonth || ''}
+                      onChange={e => editIncome(r.id, { endMonth: e.target.value })}
+                    />
+                    {r.endMonth && (
+                      <button
+                        type="button"
+                        className="month-clear"
+                        aria-label="Clear end month"
+                        title="Clear end month"
+                        onClick={() => editIncome(r.id, { endMonth: '' })}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </span>
                 ) : (
                   <span className="cell-display ro text">
                     {r.endMonth ? labelForMonthId(r.endMonth) : '—'}

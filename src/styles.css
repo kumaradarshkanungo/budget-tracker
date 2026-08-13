@@ -330,6 +330,23 @@ html, body {
   font-family: inherit;
 }
 .cell-input:focus { outline: 2px solid var(--teal); outline-offset: -1px; }
+/* Month picker with an explicit clear (✕) affordance. The ✕ is for mobile &
+   tablet only (≤1099px), where the native month-picker clear is unreliable; on
+   desktop the native picker works and the row is space-constrained, so the ✕ is
+   hidden (see the media rule at the bottom of this file). The input flexes to
+   fill; the button sits inline beside it. */
+.month-field { display: flex; align-items: center; gap: 6px; }
+.month-field .cell-input { flex: 1 1 auto; min-width: 0; }
+.month-clear {
+  display: none; /* shown only ≤1099px via media query */
+  flex: none; width: 30px; height: 30px; padding: 0;
+  align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; color: var(--muted);
+  font-size: 14px; line-height: 1; cursor: pointer;
+  font-family: inherit;
+}
+.month-clear:hover { background: #eef1f3; color: var(--text); }
 .cell-display {
   font-size: 15px; padding: 8px 10px;
   border: 1px solid transparent; border-radius: 8px;
@@ -741,6 +758,13 @@ html, body {
 .add-bill-hint { margin: 2px 8px 4px; }
 
 /* ---- Responsive: desktop layout ---------------------------------------- */
+/* Mobile & tablet (≤1099px): show the explicit month-picker clear (✕) button.
+   The native <input type="month"> clear affordance is unreliable on touch
+   devices, so we give an always-available ✕. Desktop (≥1100px) keeps the ✕
+   hidden — the native picker works there and the Start/End row is space-tight. */
+@media (max-width: 1099px) {
+  .month-clear { display: inline-flex; }
+}
 /* Tablet: two columns for the top sections. */
 @media (min-width: 700px) and (max-width: 1099px) {
   .grid { grid-template-columns: 1fr 1fr; }
