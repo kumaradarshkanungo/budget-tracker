@@ -99,6 +99,27 @@ export function incomeAppliesToMonth(tpl, monthId) {
   return true
 }
 
+// Whether an EMI template is "active" in a given "YYYY-MM" month, per its optional
+// inclusive [startMonth, endMonth] window (blank bound = unbounded on that side).
+// Same window semantics as incomeAppliesToMonth — but EMIs are queried for ANY
+// month (including the prior month of a materialization target), not only future
+// months, so it's kept as its own named helper for clarity at call sites.
+export function emiActiveInMonth(emi, monthId) {
+  return incomeAppliesToMonth(emi, monthId)
+}
+
+// Sum of the amounts of all EMIs linked to `cardId` that are active in `monthId`.
+// Used to fold card-linked EMIs into the NEXT month's card payable: callers pass
+// the PRIOR month's id (prevMonthId of the bill's month), so an EMI active in
+// month M-1 adds to the card bill materialized in month M. A blank cardId (an
+// unlinked EMI) never matches, so unlinked EMIs contribute nothing anywhere.
+export function emiAddonForCard(recurringEmis, cardId, monthId) {
+  if (!cardId) return 0
+  return (recurringEmis || [])
+    .filter(e => e.cardId === cardId && emiActiveInMonth(e, monthId))
+    .reduce((n, e) => n + (Number.isFinite(e.amount) ? e.amount : Number(e.amount) || 0), 0)
+}
+
 // Sum of a given card's spends in a month. Inlined here (rather than importing
 // creditCardTotal from calc.js) because calc.js imports from this module, so the
 // reverse import would create a cycle. Mirrors creditCardTotal(month, cardId).
@@ -160,14 +181,14 @@ export function defaultStore() {
   return {
     activeMonthId: m.id,
     months: { [m.id]: m },
-    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [] },
+    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], recurringEmis: [] },
   }
 }
 
 // Normalize any loaded store so older/partial documents get the new fields.
 export function normalizeStore(store) {
   if (!store || !store.months || !Object.keys(store.months).length) return defaultStore()
-  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], ...(store.settings || {}) }
+  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], recurringEmis: [], ...(store.settings || {}) }
   // MIGRATION: the old computed "Available" holding is now derived (Total Bank
   // Balance = sum of bank actuals) and no longer stored. Drop it — but ONLY from
   // an UNMIGRATED month, and only the machine-created row (index 0, no riId,
@@ -214,7 +235,7 @@ export const PER_MONTH_KEYS = ['holdings', 'banks', 'budget', 'bills', 'creditCa
 
 // The global settings lists that get merged by row id on import (plus the
 // scalar `defaultBankName`, handled separately).
-const SETTINGS_LISTS = ['creditCards', 'spendCategories', 'recurringBills', 'recurringIncomes']
+const SETTINGS_LISTS = ['creditCards', 'spendCategories', 'recurringBills', 'recurringIncomes', 'recurringEmis']
 
 // Build a filtered backup document from a store. `monthIds` selects which months
 // to include; `perMonthKeys` selects which per-month data groups to keep on each
@@ -307,10 +328,12 @@ export function saveStore(store) {
 // A template with type 'card' represents a credit-card payment: its NAME is the
 // card's name (from opts.cards) and, when the template amount is 0/blank, its
 // AMOUNT is prefetched from that card's total spends in opts.prevMonth (the
-// calendar month before this one). A non-zero template amount is treated as a
-// manual override and used as-is.
+// calendar month before this one) PLUS any card-linked EMIs active in that prior
+// month (opts.recurringEmis, folded in via emiAddonForCard). A non-zero template
+// amount is treated as a manual override and used as-is (no EMI addon).
 export function materializeRecurringBills(monthId, recurringBills, banks, opts = {}) {
-  const { prevMonth = null, cards = [] } = opts
+  const { prevMonth = null, cards = [], recurringEmis = [] } = opts
+  const prevId = prevMonthId(monthId)
   const [y, m] = String(monthId).split('-')
   const yy = Number(y)
   const mm = Number(m)
@@ -328,8 +351,10 @@ export function materializeRecurringBills(monthId, recurringBills, banks, opts =
     let amount = tpl.amount || 0
     if (tpl.type === 'card') {
       name = cards.find(c => c.id === tpl.cardId)?.name || ''
-      // Blank/zero template amount → prefetch from the prior month's card spends.
-      if (!amount) amount = sumCardSpends(prevMonth, tpl.cardId)
+      // Blank/zero template amount → prior month's card spends + EMIs active then.
+      if (!amount) {
+        amount = sumCardSpends(prevMonth, tpl.cardId) + emiAddonForCard(recurringEmis, tpl.cardId, prevId)
+      }
     }
 
     const bank = resolveBankId(tpl.bankName, banks)
@@ -394,6 +419,7 @@ export function newMonthFor(monthId, template, defaultBankName, settings, prevMo
     bills: materializeRecurringBills(monthId, settings?.recurringBills || [], banks, {
       prevMonth,
       cards: settings?.creditCards || [],
+      recurringEmis: settings?.recurringEmis || [],
     }),
     creditCards: [],
   }
@@ -412,7 +438,8 @@ export { STORAGE_KEY }
 //   re-resolved from the template against THIS month.
 // - Template bills whose template no longer exists are dropped.
 export function applyTemplatesToMonth(month, recurringBills, opts = {}) {
-  const { cards = [], prevMonth = null } = opts
+  const { cards = [], prevMonth = null, recurringEmis = [] } = opts
+  const prevId = prevMonthId(month?.id)
   const templates = recurringBills || []
   const tplIds = new Set(templates.map(t => t.id))
   const banks = month?.banks || []
@@ -443,13 +470,14 @@ export function applyTemplatesToMonth(month, recurringBills, opts = {}) {
     const bankId = resolveBankId(tpl.bankName, banks)
 
     // Amount — preserve a manual override; else recompute from the template
-    // (card templates prefetch from THIS month's prior month card spends).
+    // (card templates prefetch from THIS month's prior month card spends, plus
+    // any card-linked EMIs active in that prior month).
     const isAuto = prev ? prev.amountAuto !== false : true
     let amount
     if (!isAuto) {
       amount = prev.amount
     } else if (tpl.type === 'card') {
-      amount = tpl.amount || sumCardSpends(prevMonth, tpl.cardId)
+      amount = tpl.amount || (sumCardSpends(prevMonth, tpl.cardId) + emiAddonForCard(recurringEmis, tpl.cardId, prevId))
     } else {
       amount = tpl.amount || 0
     }
@@ -513,6 +541,7 @@ export function syncRecurringToFutureMonths(store, opts = {}) {
   const templates = store.settings?.recurringBills || []
   const incomes = store.settings?.recurringIncomes || []
   const cards = store.settings?.creditCards || []
+  const recurringEmis = store.settings?.recurringEmis || []
   const months = { ...store.months }
   let changed = false
   for (const id of Object.keys(months)) {
@@ -521,7 +550,7 @@ export function syncRecurringToFutureMonths(store, opts = {}) {
     const prevMonth = store.months[prevMonthId(id)] || null
     months[id] = {
       ...m,
-      bills: applyTemplatesToMonth(m, templates, { cards, prevMonth }),
+      bills: applyTemplatesToMonth(m, templates, { cards, prevMonth, recurringEmis }),
       holdings: applyIncomesToMonth(m, incomes),
     }
     changed = true

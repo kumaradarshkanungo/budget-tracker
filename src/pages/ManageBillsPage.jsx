@@ -19,6 +19,9 @@ export function ManageBillsPage() {
       addRecurringIncome={s.addRecurringIncome}
       updateRecurringIncome={s.updateRecurringIncome}
       deleteRecurringIncome={s.deleteRecurringIncome}
+      addRecurringEmi={s.addRecurringEmi}
+      updateRecurringEmi={s.updateRecurringEmi}
+      deleteRecurringEmi={s.deleteRecurringEmi}
       onClose={() => navigate('/')}
     />
   )

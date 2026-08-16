@@ -373,6 +373,60 @@ export function useBudgetStore(userId) {
     })
   }, [])
 
+  // ---- Recurring EMIs (global master list in settings) ------------------
+  // Templates hold { id, name, cardId, amount, startMonth, endMonth }. An EMI is
+  // NOT materialized as its own bill or spend row; instead, a card-linked EMI
+  // (cardId set) folds into the NEXT month's card payable: for month M, the card
+  // bill amount = that card's prior-month spends + Σ EMIs linked to the card that
+  // are active in month M-1 (see emiAddonForCard in storage.js). An unlinked EMI
+  // (blank cardId) materializes nothing — it's a reference-only list entry. The
+  // [startMonth, endMonth] window is inclusive (blank = unbounded). Add/update/
+  // delete re-syncs future months so their card payables recompute immediately;
+  // hand-edited (amountAuto:false) card bills are preserved.
+  const addRecurringEmi = useCallback((tpl = {}) => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringEmis: [
+            ...((prev.settings || {}).recurringEmis || []),
+            { id: uid('emi'), name: '', cardId: '', amount: 0, startMonth: '', endMonth: '', ...tpl },
+          ],
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
+  }, [])
+
+  const updateRecurringEmi = useCallback((id, patch) => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringEmis: ((prev.settings || {}).recurringEmis || []).map(r =>
+            r.id === id ? { ...r, ...patch } : r
+          ),
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
+  }, [])
+
+  const deleteRecurringEmi = useCallback(id => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringEmis: ((prev.settings || {}).recurringEmis || []).filter(r => r.id !== id),
+        },
+      }
+      return syncRecurringToFutureMonths(next)
+    })
+  }, [])
+
   // Add a credit-card bill to the ACTIVE month's Bills & EMIs. Its name is the
   // card's name and its amount is prefetched from that card's total spends in the
   // calendar prior month (0 if there's no prior month). Date is left blank for
@@ -487,6 +541,9 @@ export function useBudgetStore(userId) {
     addRecurringIncome,
     updateRecurringIncome,
     deleteRecurringIncome,
+    addRecurringEmi,
+    updateRecurringEmi,
+    deleteRecurringEmi,
     addCardBill,
     switchMonth,
     addMonth,

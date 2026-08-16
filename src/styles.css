@@ -725,7 +725,8 @@ html, body {
 .manage-table .thead, .manage-table .trow { grid-template-columns: 1fr 64px 1.6fr 1.2fr 1fr 32px; }
 /* Breathing room between the list's description (.hint) and its first row/card. */
 .settings-page .manage-table,
-.settings-page .incomes-table { margin-top: 12px; }
+.settings-page .incomes-table,
+.settings-page .emis-table { margin-top: 12px; }
 .manage-table .trow .cell-input,
 .manage-table .trow .cell-display { width: 100%; min-width: 0; }
 /* Amount right-aligns to match the app's money convention (matches the read-only
@@ -747,6 +748,16 @@ html, body {
 .incomes-table .trow > span[data-label='Amount'] { text-align: right; }
 .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
 .incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: right; }
+
+/* EMIs table: Name · Credit card · Amount · Start · End · delete. Start/End are
+   "YYYY-MM" month pickers (blank = unbounded); a card-linked EMI feeds the next
+   month's card payable. */
+.emis-table .thead, .emis-table .trow { grid-template-columns: 1.4fr 1.2fr 1fr 1.1fr 1.1fr 32px; }
+.emis-table .trow .cell-input,
+.emis-table .trow .cell-display { width: 100%; min-width: 0; }
+.emis-table .trow > span[data-label='Amount'] { text-align: right; }
+.emis-table .trow > span[data-label='Amount'] .cell-input.money,
+.emis-table .trow > span[data-label='Amount'] .cell-display.money { text-align: right; }
 
 /* Bills & EMIs "＋ Add bill" popover menu (blank bill / from credit card). */
 .add-bill-menu { position: relative; display: inline-flex; }
@@ -883,6 +894,20 @@ html, body {
   .incomes-table .trow > span[data-label='Amount'] { text-align: left; }
   .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
   .incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
+  /* EMIs table on mobile: two-per-row flow (Name | Card, Amount | Start, End),
+     Name spans the full width, delete drops to its own full-width row. */
+  .emis-table .trow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+    padding: 12px 0;
+  }
+  .emis-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
+  .emis-table .trow > .row-actions:empty { display: none; }
+  .emis-table .trow > .row-actions { grid-column: 1 / -1; }
+  .emis-table .trow > span[data-label='Amount'] { text-align: left; }
+  .emis-table .trow > span[data-label='Amount'] .cell-input.money,
+  .emis-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
   /* min-width:0 lets a long read-only name (nowrap) shrink instead of blowing
      out its 1fr grid track on narrow phones. */
   .trow > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

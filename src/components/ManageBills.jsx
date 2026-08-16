@@ -25,6 +25,9 @@ export function ManageBills({
   addRecurringIncome,
   updateRecurringIncome,
   deleteRecurringIncome,
+  addRecurringEmi,
+  updateRecurringEmi,
+  deleteRecurringEmi,
   onClose,
 }) {
   const editable = useEditable()
@@ -38,6 +41,8 @@ export function ManageBills({
   const addTemplate = () => { setSyncMsg(''); addRecurringBill() }
   const editIncome = (id, patch) => { setSyncMsg(''); updateRecurringIncome(id, patch) }
   const addIncome = () => { setSyncMsg(''); addRecurringIncome() }
+  const editEmi = (id, patch) => { setSyncMsg(''); updateRecurringEmi(id, patch) }
+  const addEmi = () => { setSyncMsg(''); addRecurringEmi() }
   // Show recurring bills ordered by day-of-month (ascending); templates without a
   // day sort last. Sorting a copy keeps the stored order untouched.
   const dayOf = r => {
@@ -46,6 +51,7 @@ export function ManageBills({
   }
   const recurringBills = [...(settings.recurringBills || [])].sort((a, b) => dayOf(a) - dayOf(b))
   const recurringIncomes = settings.recurringIncomes || []
+  const recurringEmis = settings.recurringEmis || []
 
   function handleSync() {
     const n = syncRecurringNow ? syncRecurringNow() : 0
@@ -63,6 +69,13 @@ export function ManageBills({
     if (window.confirm(`Delete recurring income "${r.name || 'Unnamed'}"? It will be removed from future months. Current and past months are unaffected.`)) {
       setSyncMsg('')
       deleteRecurringIncome(r.id)
+    }
+  }
+
+  function handleDeleteEmi(r) {
+    if (window.confirm(`Delete EMI "${r.name || 'Unnamed'}"? Future months' card payables will be recalculated. Current and past months are unaffected.`)) {
+      setSyncMsg('')
+      deleteRecurringEmi(r.id)
     }
   }
 
@@ -293,6 +306,124 @@ export function ManageBills({
         {editable && (
           <div className="add-bank-row">
             <button className="mb-btn" onClick={() => addIncome()}>＋ Add recurring income</button>
+          </div>
+        )}
+
+        <h3 className="mb-subhead">EMIs</h3>
+        <p className="hint" style={{ marginTop: 0 }}>
+          An EMI linked to a credit card is added to that card&rsquo;s payable in the <strong>next</strong> month&rsquo;s
+          Bills &amp; EMIs (it is not counted as a spend in its own month). Unlinked EMIs are listed here for reference only.
+        </p>
+
+        <div className="table emis-table">
+          <div className="thead">
+            <span>Name</span>
+            <span>Credit card</span>
+            <span>Amount</span>
+            <span>Start</span>
+            <span>End</span>
+            <span />
+          </div>
+          {recurringEmis.map(r => {
+            const cardLabel = r.cardId ? (cards.find(c => c.id === r.cardId)?.name || '(deleted)') : '—'
+            return (
+              <SwipeToDelete key={r.id} onDelete={() => handleDeleteEmi(r)} label="Delete">
+              <div className="trow">
+                <span data-label="Name">
+                  <TextInput
+                    value={r.name}
+                    placeholder="Name"
+                    onChange={v => editEmi(r.id, { name: v })}
+                  />
+                </span>
+                <span data-label="Credit card">
+                  {editable ? (
+                    <select
+                      className="cell-input"
+                      value={r.cardId || ''}
+                      onChange={e => editEmi(r.id, { cardId: e.target.value })}
+                    >
+                      <option value="">— None —</option>
+                      {cards.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="cell-display ro text">{cardLabel}</span>
+                  )}
+                </span>
+                <span data-label="Amount">
+                  <MoneyInput value={r.amount} onChange={v => editEmi(r.id, { amount: v })} />
+                </span>
+                <span data-label="Start">
+                  {editable ? (
+                    <span className="month-field">
+                      <input
+                        type="month"
+                        className="cell-input"
+                        value={r.startMonth || ''}
+                        onChange={e => editEmi(r.id, { startMonth: e.target.value })}
+                      />
+                      {r.startMonth && (
+                        <button
+                          type="button"
+                          className="month-clear"
+                          aria-label="Clear start month"
+                          title="Clear start month"
+                          onClick={() => editEmi(r.id, { startMonth: '' })}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="cell-display ro text">
+                      {r.startMonth ? labelForMonthId(r.startMonth) : '—'}
+                    </span>
+                  )}
+                </span>
+                <span data-label="End">
+                  {editable ? (
+                    <span className="month-field">
+                      <input
+                        type="month"
+                        className="cell-input"
+                        value={r.endMonth || ''}
+                        onChange={e => editEmi(r.id, { endMonth: e.target.value })}
+                      />
+                      {r.endMonth && (
+                        <button
+                          type="button"
+                          className="month-clear"
+                          aria-label="Clear end month"
+                          title="Clear end month"
+                          onClick={() => editEmi(r.id, { endMonth: '' })}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="cell-display ro text">
+                      {r.endMonth ? labelForMonthId(r.endMonth) : '—'}
+                    </span>
+                  )}
+                </span>
+                <span className="row-actions">
+                  <IconButton label="Delete EMI" variant="danger" onClick={() => handleDeleteEmi(r)} />
+                </span>
+              </div>
+              </SwipeToDelete>
+            )
+          })}
+          {recurringEmis.length === 0 && <p className="hint">No EMIs yet — add one below.</p>}
+        </div>
+
+        {editable && (
+          <div className="add-bank-row">
+            <button className="mb-btn" onClick={() => addEmi()}>＋ Add EMI</button>
           </div>
         )}
       </Section>

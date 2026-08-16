@@ -16,6 +16,8 @@ import {
   materializeRecurringIncomes,
   applyIncomesToMonth,
   incomeAppliesToMonth,
+  emiActiveInMonth,
+  emiAddonForCard,
   snapshotStore,
   restoredStore,
   selectStore,
@@ -78,6 +80,7 @@ describe('normalizeStore', () => {
       spendCategories: [],
       recurringBills: [],
       recurringIncomes: [],
+      recurringEmis: [],
     })
   })
   it('falls back to a seeded default store when empty', () => {
@@ -1161,5 +1164,166 @@ describe('snapshotStore / restoredStore (edit-mode discard)', () => {
     expect(restoredStore(null)).toBe(null)
     expect(restoredStore(undefined)).toBe(undefined)
     expect(restoredStore(null, '2026-08')).toBe(null)
+  })
+})
+
+describe('emiActiveInMonth', () => {
+  it('is active in every month when no window is set', () => {
+    expect(emiActiveInMonth({ id: 'e' }, '2026-09')).toBe(true)
+    expect(emiActiveInMonth({ startMonth: '', endMonth: '' }, '2020-01')).toBe(true)
+    expect(emiActiveInMonth({ id: 'e' }, undefined)).toBe(true)
+  })
+
+  it('respects an inclusive start bound (blank end = forever)', () => {
+    const emi = { startMonth: '2026-11', endMonth: '' }
+    expect(emiActiveInMonth(emi, '2026-10')).toBe(false)
+    expect(emiActiveInMonth(emi, '2026-11')).toBe(true) // inclusive
+    expect(emiActiveInMonth(emi, '2027-05')).toBe(true)
+  })
+
+  it('respects an inclusive end bound (blank start = from the beginning)', () => {
+    const emi = { startMonth: '', endMonth: '2026-10' }
+    expect(emiActiveInMonth(emi, '2026-09')).toBe(true)
+    expect(emiActiveInMonth(emi, '2026-10')).toBe(true) // inclusive
+    expect(emiActiveInMonth(emi, '2026-11')).toBe(false)
+  })
+
+  it('honours both bounds inclusively', () => {
+    const emi = { startMonth: '2026-09', endMonth: '2026-12' }
+    expect(emiActiveInMonth(emi, '2026-08')).toBe(false)
+    expect(emiActiveInMonth(emi, '2026-09')).toBe(true)
+    expect(emiActiveInMonth(emi, '2026-12')).toBe(true)
+    expect(emiActiveInMonth(emi, '2027-01')).toBe(false)
+  })
+})
+
+describe('emiAddonForCard', () => {
+  const emis = [
+    { id: 'e1', cardId: 'card-hdfc', amount: 1000, startMonth: '', endMonth: '' },
+    { id: 'e2', cardId: 'card-hdfc', amount: 500, startMonth: '2026-09', endMonth: '2026-12' },
+    { id: 'e3', cardId: 'card-other', amount: 9999, startMonth: '', endMonth: '' },
+    { id: 'e4', cardId: '', amount: 7777, startMonth: '', endMonth: '' }, // unlinked
+  ]
+
+  it('sums only matching-card EMIs that are active in the month', () => {
+    // Sep: both e1 (unbounded) and e2 (in-window) apply.
+    expect(emiAddonForCard(emis, 'card-hdfc', '2026-09')).toBe(1500)
+  })
+
+  it('excludes EMIs outside their active window', () => {
+    // Aug: e2 not yet started, only e1 applies.
+    expect(emiAddonForCard(emis, 'card-hdfc', '2026-08')).toBe(1000)
+    // 2027-01: e2 ended, only e1 applies.
+    expect(emiAddonForCard(emis, 'card-hdfc', '2027-01')).toBe(1000)
+  })
+
+  it('returns 0 for a blank cardId (unlinked)', () => {
+    expect(emiAddonForCard(emis, '', '2026-09')).toBe(0)
+  })
+
+  it('returns 0 when no EMIs match the card', () => {
+    expect(emiAddonForCard(emis, 'card-none', '2026-09')).toBe(0)
+    expect(emiAddonForCard([], 'card-hdfc', '2026-09')).toBe(0)
+    expect(emiAddonForCard(undefined, 'card-hdfc', '2026-09')).toBe(0)
+  })
+})
+
+describe('materializeRecurringBills — EMI addon on card templates', () => {
+  const banks = [{ id: 'bank-idfc', name: 'IDFC' }]
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const prevMonth = { creditCards: [{ id: 's1', cardId: 'card-hdfc', amount: 2000 }] }
+  const tpl = [{ id: 'rb', type: 'card', cardId: 'card-hdfc', day: 20, bankName: 'IDFC', amount: 0 }]
+
+  it('adds EMIs active in the prior month to the prefetched card total', () => {
+    // Materializing 2026-09 → prior month is 2026-08; EMI active there adds 1500.
+    const recurringEmis = [{ id: 'e1', cardId: 'card-hdfc', amount: 1500, startMonth: '', endMonth: '' }]
+    const bill = materializeRecurringBills('2026-09', tpl, banks, { prevMonth, cards, recurringEmis })[0]
+    expect(bill.amount).toBe(3500) // 2000 prior spends + 1500 EMI
+  })
+
+  it('excludes an EMI not active in the prior month', () => {
+    // EMI starts 2026-09, but prior month is 2026-08 → no addon.
+    const recurringEmis = [{ id: 'e1', cardId: 'card-hdfc', amount: 1500, startMonth: '2026-09', endMonth: '' }]
+    const bill = materializeRecurringBills('2026-09', tpl, banks, { prevMonth, cards, recurringEmis })[0]
+    expect(bill.amount).toBe(2000) // prior spends only
+  })
+
+  it('adds the EMI addon even with no prior-month spends', () => {
+    const recurringEmis = [{ id: 'e1', cardId: 'card-hdfc', amount: 1500, startMonth: '', endMonth: '' }]
+    const bill = materializeRecurringBills('2026-09', tpl, banks, { cards, recurringEmis })[0]
+    expect(bill.amount).toBe(1500) // 0 spends + 1500 EMI
+  })
+
+  it('does not apply the addon when the template amount is a manual override', () => {
+    const manual = [{ id: 'rb', type: 'card', cardId: 'card-hdfc', day: 20, bankName: 'IDFC', amount: 555 }]
+    const recurringEmis = [{ id: 'e1', cardId: 'card-hdfc', amount: 1500, startMonth: '', endMonth: '' }]
+    expect(materializeRecurringBills('2026-09', manual, banks, { prevMonth, cards, recurringEmis })[0].amount).toBe(555)
+  })
+
+  it('ignores an unlinked EMI (blank cardId contributes nothing)', () => {
+    const recurringEmis = [{ id: 'e1', cardId: '', amount: 1500, startMonth: '', endMonth: '' }]
+    const bill = materializeRecurringBills('2026-09', tpl, banks, { prevMonth, cards, recurringEmis })[0]
+    expect(bill.amount).toBe(2000) // prior spends only, no addon
+  })
+})
+
+describe('applyTemplatesToMonth — EMI addon', () => {
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const tpl = [{ id: 'rbc', type: 'card', cardId: 'card-hdfc', day: 10, bankName: 'IDFC', amount: 0 }]
+  const prevMonth = { creditCards: [{ id: 's', cardId: 'card-hdfc', amount: 2000 }] }
+  const recurringEmis = [{ id: 'e1', cardId: 'card-hdfc', amount: 1500, startMonth: '', endMonth: '' }]
+
+  it('folds the prior-month EMI addon into an auto card bill', () => {
+    const month = {
+      id: '2026-09',
+      banks: [{ id: 'y', name: 'IDFC' }],
+      bills: [{ id: 'b1', rbId: 'rbc', amountAuto: true, amount: 0, paid: false }],
+    }
+    const bills = applyTemplatesToMonth(month, tpl, { cards, prevMonth, recurringEmis })
+    expect(bills.find(b => b.rbId === 'rbc').amount).toBe(3500) // 2000 + 1500
+  })
+
+  it('leaves a manually-edited card bill (amountAuto:false) untouched by the addon', () => {
+    const month = {
+      id: '2026-09',
+      banks: [{ id: 'y', name: 'IDFC' }],
+      bills: [{ id: 'b1', rbId: 'rbc', amountAuto: false, amount: 42000, paid: false }],
+    }
+    const bills = applyTemplatesToMonth(month, tpl, { cards, prevMonth, recurringEmis })
+    expect(bills.find(b => b.rbId === 'rbc').amount).toBe(42000)
+  })
+})
+
+describe('syncRecurringToFutureMonths — EMI addon (future only)', () => {
+  const today = new Date(2026, 7, 15) // August 2026 → currentMonthId '2026-08'
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const cardTpl = [{ id: 'rbc', type: 'card', cardId: 'card-hdfc', day: 10, bankName: 'IDFC', amount: 0 }]
+
+  // A store with a past (Jul), current (Aug), and future (Sep) month, each seeded
+  // with an auto card bill. Each month carries its own prior-month card spends.
+  const makeStore = () => ({
+    activeMonthId: '2026-08',
+    settings: {
+      recurringBills: cardTpl,
+      creditCards: cards,
+      recurringEmis: [{ id: 'e1', cardId: 'card-hdfc', amount: 1500, startMonth: '', endMonth: '' }],
+    },
+    months: {
+      '2026-07': { id: '2026-07', banks: [{ id: 'j', name: 'IDFC' }], creditCards: [{ id: 'sj', cardId: 'card-hdfc', amount: 100 }], bills: [{ id: 'b-jul', rbId: 'rbc', amountAuto: true, amount: 700, paid: true }] },
+      '2026-08': { id: '2026-08', banks: [{ id: 'a', name: 'IDFC' }], creditCards: [{ id: 'sa', cardId: 'card-hdfc', amount: 200 }], bills: [{ id: 'b-aug', rbId: 'rbc', amountAuto: true, amount: 800, paid: false }] },
+      '2026-09': { id: '2026-09', banks: [{ id: 's', name: 'IDFC' }], creditCards: [{ id: 'ss', cardId: 'card-hdfc', amount: 3000 }], bills: [{ id: 'b-sep', rbId: 'rbc', amountAuto: true, amount: 0, paid: false }] },
+    },
+  })
+
+  it('raises only the future-month card payable by the EMI addon; past/current untouched', () => {
+    const store = makeStore()
+    const next = syncRecurringToFutureMonths(store, { today })
+    // Sep (future) recomputes: prior = Aug spends (200) + EMI active in Aug (1500) = 1700.
+    expect(next.months['2026-09'].bills[0].amount).toBe(1700)
+    // Past & current months are the same object (untouched).
+    expect(next.months['2026-07']).toBe(store.months['2026-07'])
+    expect(next.months['2026-08']).toBe(store.months['2026-08'])
+    expect(next.months['2026-07'].bills[0].amount).toBe(700)
+    expect(next.months['2026-08'].bills[0].amount).toBe(800)
   })
 })
