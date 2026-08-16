@@ -638,6 +638,18 @@ html, body {
 .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .modal-field { display: flex; flex-direction: column; gap: 6px; }
 .modal-field label { font-size: 13px; color: var(--muted); }
+/* Form controls inside a modal field fill the width (the inline-cell .cell-input
+   class isn't used here) and match the app's input sizing. */
+.modal-field input,
+.modal-field select {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px; font-size: 14px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); color: var(--text);
+}
+/* Two fields side by side (e.g. Start / End month) inside the modal body. */
+.modal-field-row { display: flex; gap: 12px; }
+.modal-field-row .modal-field { flex: 1; min-width: 0; }
 
 /* ---- Backup & Restore (Settings) + export-options modal ----------------- */
 .backup-actions { display: flex; gap: 8px; flex-wrap: wrap; }

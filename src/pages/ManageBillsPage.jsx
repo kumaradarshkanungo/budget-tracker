@@ -1,13 +1,12 @@
-import { useNavigate } from 'react-router-dom'
 import { useStoreCtx } from '../context/StoreContext.jsx'
 import { ManageBills } from '../components/ManageBills.jsx'
 
 // The "Manage Bills & EMIs" route at "/manage-bills". Edit mode is app-wide now:
 // it inherits the App-level EditModeProvider (driven by the floating action
-// button) and resets on navigation via App's route-change effect.
+// button) and resets on navigation via App's route-change effect. The nav drawer
+// and floating action button handle leaving the page, so there's no in-page Back.
 export function ManageBillsPage() {
   const { store: s } = useStoreCtx()
-  const navigate = useNavigate()
   return (
     <ManageBills
       month={s.month}
@@ -22,7 +21,6 @@ export function ManageBillsPage() {
       addRecurringEmi={s.addRecurringEmi}
       updateRecurringEmi={s.updateRecurringEmi}
       deleteRecurringEmi={s.deleteRecurringEmi}
-      onClose={() => navigate('/')}
     />
   )
 }
