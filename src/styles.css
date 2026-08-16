@@ -999,14 +999,17 @@ html, body {
   .swipe-row.is-dragging .swipe-delete-panel { visibility: visible; }
   .swipe-row.is-open .swipe-delete-panel { pointer-events: auto; }
 
-  /* On mobile the swipe gesture replaces the edit-mode trash button in these 5
+  /* On mobile the swipe gesture replaces the edit-mode trash button in these 6
      card tables, so hide .row-actions entirely (desktop keeps it — no swipe
-     there). This also drops the full-width delete row that manage/incomes add. */
+     there). This also drops the full-width delete row that manage/incomes/emis
+     add (the .emis-table rule at ~919 forces .row-actions full-width; display:none
+     here removes it from layout so the swipe gesture isn't competing with it). */
   .bills-table .trow > .row-actions,
   .budget-table .trow > .row-actions,
   .spends-table .trow > .row-actions,
   .manage-table .trow > .row-actions,
-  .incomes-table .trow > .row-actions { display: none; }
+  .incomes-table .trow > .row-actions,
+  .emis-table .trow > .row-actions { display: none; }
 
   /* Read-only text cells inside a swipe card are nowrap; give them ellipsis so a
      long name/notes value truncates cleanly at the cell edge (backed by the
@@ -1033,14 +1036,16 @@ html, body {
      bordered, gapped — instead of divider-separated rows. overflow:hidden on
      .swipe-row already clips the sliding fg + red panel to the rounded corners. */
   .settings-page .manage-table .swipe-row,
-  .settings-page .incomes-table .swipe-row {
+  .settings-page .incomes-table .swipe-row,
+  .settings-page .emis-table .swipe-row {
     border: 1px solid var(--line);
     border-radius: 10px;
     margin-bottom: 8px;
     box-shadow: var(--shadow);
   }
   .settings-page .manage-table .swipe-row > .swipe-fg > .trow,
-  .settings-page .incomes-table .swipe-row > .swipe-fg > .trow {
+  .settings-page .incomes-table .swipe-row > .swipe-fg > .trow,
+  .settings-page .emis-table .swipe-row > .swipe-fg > .trow {
     padding: 10px 12px;
   }
 

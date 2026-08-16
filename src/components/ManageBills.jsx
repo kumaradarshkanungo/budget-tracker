@@ -578,15 +578,13 @@ export function ManageBills({
                 onChange={e => setD({ amount: e.target.value })}
               />
             </div>
-            <div className="modal-field-row">
-              <div className="modal-field">
-                <label>Start month</label>
-                <input type="month" value={draft.startMonth || ''} onChange={e => setD({ startMonth: e.target.value })} />
-              </div>
-              <div className="modal-field">
-                <label>End month</label>
-                <input type="month" value={draft.endMonth || ''} onChange={e => setD({ endMonth: e.target.value })} />
-              </div>
+            <div className="modal-field">
+              <label>Start month</label>
+              <input type="month" value={draft.startMonth || ''} onChange={e => setD({ startMonth: e.target.value })} />
+            </div>
+            <div className="modal-field">
+              <label>End month</label>
+              <input type="month" value={draft.endMonth || ''} onChange={e => setD({ endMonth: e.target.value })} />
             </div>
           </>
         )}
@@ -621,15 +619,13 @@ export function ManageBills({
                 onChange={e => setD({ amount: e.target.value })}
               />
             </div>
-            <div className="modal-field-row">
-              <div className="modal-field">
-                <label>Start month</label>
-                <input type="month" value={draft.startMonth || ''} onChange={e => setD({ startMonth: e.target.value })} />
-              </div>
-              <div className="modal-field">
-                <label>End month</label>
-                <input type="month" value={draft.endMonth || ''} onChange={e => setD({ endMonth: e.target.value })} />
-              </div>
+            <div className="modal-field">
+              <label>Start month</label>
+              <input type="month" value={draft.startMonth || ''} onChange={e => setD({ startMonth: e.target.value })} />
+            </div>
+            <div className="modal-field">
+              <label>End month</label>
+              <input type="month" value={draft.endMonth || ''} onChange={e => setD({ endMonth: e.target.value })} />
             </div>
           </>
         )}

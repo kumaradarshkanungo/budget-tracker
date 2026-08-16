@@ -64,6 +64,7 @@ export function SwipeToDelete({ onDelete, disabled = false, label = 'Delete', cl
   const [dragging, setDragging] = useState(false)
   const fgRef = useRef(null)
   const txRef = useRef(0)          // authoritative current position (mirrors state)
+  const closeRef = useRef(null)    // this row's registered close fn (for closeOthers exclusion)
   const mounted = useRef(true)
   const g = useRef(null)           // gesture-local scratch, reset on each touchstart
   useOutsideTapCloser()
@@ -90,6 +91,7 @@ export function SwipeToDelete({ onDelete, disabled = false, label = 'Delete', cl
   useEffect(() => {
     txRef.current = tx
     const close = () => commitTx(0)
+    closeRef.current = close
     if (tx !== 0) {
       openRows.add(close)
       return () => openRows.delete(close)
@@ -116,7 +118,9 @@ export function SwipeToDelete({ onDelete, disabled = false, label = 'Delete', cl
       if (g.current.axis === 'h') {
         g.current.moved = true
         setDragging(true)
-        closeOthers(() => commitTx(0))
+        // Close every OTHER open row — exclude this row's own registered close fn
+        // so re-swiping an already-open row doesn't reset its position mid-drag.
+        closeOthers(closeRef.current)
       }
     }
     if (g.current.axis !== 'h') return // vertical → let the page scroll
