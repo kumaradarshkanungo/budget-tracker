@@ -89,30 +89,31 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
 
   return (
     <div className="spends-page">
-      <div className="settings-head">
-        <h2>Credit Card Spends</h2>
-        <div className="settings-head-actions">
-          <button className="mb-btn" onClick={handleSync} title="Re-apply recurring templates to all future months so their card payables pick up the latest spends">
-            ⟳ Sync
-          </button>
-        </div>
-      </div>
       {syncMsg && <p className="sync-msg" role="status">{syncMsg}</p>}
 
       <Section
-        title="Spends this month"
+        title="Credit Card Spends"
         accent="#7c5cff"
         actions={
-          cards.length > 0 && (
-            <CardFilter
-              cards={cards}
-              selectedCard={selectedCard}
-              cardName={cardName}
-              onSelect={setSelectedCard}
-              open={filterOpen}
-              setOpen={setFilterOpen}
-            />
-          )
+          <div className="spends-head-actions">
+            <button
+              className="mb-btn"
+              onClick={handleSync}
+              title="Re-apply recurring templates to all future months so their card payables pick up the latest spends"
+            >
+              ⟳ Sync
+            </button>
+            {cards.length > 0 && (
+              <CardFilter
+                cards={cards}
+                selectedCard={selectedCard}
+                cardName={cardName}
+                onSelect={setSelectedCard}
+                open={filterOpen}
+                setOpen={setFilterOpen}
+              />
+            )}
+          </div>
         }
       >
         {cards.length === 0 ? (

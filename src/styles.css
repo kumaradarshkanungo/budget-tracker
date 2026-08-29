@@ -503,6 +503,7 @@ html, body {
 
 /* ---- Credit card spends: action cluster -------------------------------- */
 .spends-actions { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spends-head-actions { display: flex; align-items: center; gap: 8px; }
 
 /* ---- Icon buttons ------------------------------------------------------- */
 .icon-btn {
