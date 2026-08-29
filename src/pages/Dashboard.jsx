@@ -15,7 +15,7 @@ export function Dashboard() {
       <SummaryCards month={month} />
 
       <div className="grid">
-        <TotalBalance month={month} addRow={s.addRow} updateRow={s.updateRow} deleteRow={s.deleteRow} />
+        <TotalBalance month={month} addRow={s.addRow} updateRow={s.updateRow} deleteRow={s.deleteRow} reorderRow={s.reorderRow} />
         <BankBalance month={month} updateRow={s.updateRow} />
         <Budget month={month} addRow={s.addRow} updateRow={s.updateRow} deleteRow={s.deleteRow} />
       </div>

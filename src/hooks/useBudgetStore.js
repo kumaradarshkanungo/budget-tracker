@@ -145,6 +145,25 @@ export function useBudgetStore(userId) {
     [mutateAndMaybeSync]
   )
 
+  // Reorder a row within its list by moving the row with id `fromId` to the
+  // position currently held by `toId` (drag-and-drop). No-op if either id is
+  // missing or they're the same. Mutating the stored array order is what lets the
+  // Total Balance list "remember" positions: checked holdings only SORT to the
+  // bottom for display, so unchecking one returns it to its stored slot.
+  const reorderRow = useCallback((key, fromId, toId) => {
+    if (!fromId || !toId || fromId === toId) return
+    mutateAndMaybeSync(key, m => {
+      const list = m[key] || []
+      const from = list.findIndex(r => r.id === fromId)
+      const to = list.findIndex(r => r.id === toId)
+      if (from === -1 || to === -1) return m
+      const next = list.slice()
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return { ...m, [key]: next }
+    })
+  }, [mutateAndMaybeSync])
+
   // Add a bank (optionally named). Returns nothing; reflects immediately on the
   // main Bank Balance screen since banks live on the active month.
   const addBank = useCallback(
@@ -540,6 +559,7 @@ export function useBudgetStore(userId) {
     addRow,
     updateRow,
     deleteRow,
+    reorderRow,
     addBank,
     deleteBank,
     renameBank,
