@@ -41,9 +41,10 @@ import { MoneyInput, TextInput } from './Inputs.jsx'
 //
 // REORDER via @dnd-kit (reliable on mouse + touch, no visible drag handle by
 // request — the whole row is the drag surface). Mouse arms after a 6px move;
-// touch arms after a 200ms hold (so a quick vertical swipe still scrolls the
-// page). Interactive controls (checkbox / inputs / delete) stop pointerdown from
-// reaching the sensor, so they keep working normally.
+// touch arms after a ~600ms hold (so a quick vertical swipe still scrolls the
+// page). A picked-up row dims and lifts (see .is-dragging in styles.css) so it's
+// clear what's being moved. Interactive controls (checkbox / inputs / delete)
+// stop pointerdown from reaching the sensor, so they keep working normally.
 
 function SortableHolding({ h, updateRow, deleteRow }) {
   const checked = !!h.excluded
@@ -51,11 +52,16 @@ function SortableHolding({ h, updateRow, deleteRow }) {
     id: h.id,
   })
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Combine dnd-kit's positional transform with a slight scale-up so the
+    // picked-up row visibly lifts. Inline transform wins over any CSS transform,
+    // so the scale must live here, not in .is-dragging CSS.
+    transform: [CSS.Transform.toString(transform), isDragging ? 'scale(1.02)' : '']
+      .filter(Boolean)
+      .join(' '),
     transition,
-    // Lift the row above its siblings and dim it slightly while dragging.
-    zIndex: isDragging ? 2 : undefined,
-    opacity: isDragging ? 0.85 : undefined,
+    // Lift the picked-up row above its siblings; the rest of the "grabbed" look
+    // (transparency, shadow) lives in the .is-dragging CSS class.
+    zIndex: isDragging ? 3 : undefined,
   }
   const cls = ['row', 'two', 'holding-row']
   if (checked) cls.push('is-checked')
@@ -123,8 +129,9 @@ export function TotalBalance({ month, addRow, updateRow, deleteRow, reorderRow }
   const sensors = useSensors(
     // Mouse/pen: start dragging after a small move so plain clicks still work.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    // Touch: hold briefly to arm, so a quick vertical swipe scrolls the page.
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    // Touch: hold for ~600ms to arm the drag, so a quick vertical swipe just
+    // scrolls the page. Tolerance keeps the hold alive through tiny finger jitter.
+    useSensor(TouchSensor, { activationConstraint: { delay: 600, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 

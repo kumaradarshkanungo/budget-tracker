@@ -326,9 +326,21 @@ html, body {
 
 /* Total Balance holdings: press-drag to reorder (no handle — grab the row),
    checked rows strike through and float to the bottom (sort handled in JSX).
-   Drag is powered by @dnd-kit; the whole row is the drag surface. */
-.holding-row { cursor: grab; touch-action: none; user-select: none; }
+   Drag is powered by @dnd-kit; the whole row is the drag surface.
+   Note: no `touch-action: none` here — dnd-kit's TouchSensor arms on a ~600ms
+   hold, so leaving touch-action at its default lets a quick vertical swipe scroll
+   the page normally instead of getting captured by the row. */
+.holding-row { cursor: grab; user-select: none; }
 .holding-row.is-dragging { cursor: grabbing; }
+/* The picked-up row: dim it and lift it with a shadow so it's obvious which row
+   is being moved. The scale-up is applied inline in JSX (it has to share the
+   same transform as dnd-kit's positional offset). */
+.holding-row.is-dragging {
+  opacity: 0.7;
+  background: var(--card, #fff);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  border-radius: 8px;
+}
 /* The grab cursor must show across the row, including its read-only text/amount
    spans — otherwise most of the row shows a default cursor and it reads as
    non-draggable. Interactive controls override back to their own cursor. */
