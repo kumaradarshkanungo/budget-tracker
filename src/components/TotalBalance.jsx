@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { totalAvailable, totalBankBalance } from '../lib/calc.js'
 import { uid } from '../lib/storage.js'
 import { Computed, Section, IconButton } from './ui.jsx'
@@ -21,13 +21,23 @@ import { MoneyInput, TextInput } from './Inputs.jsx'
 // to the bottom, unchecked ones stay on top — a STABLE partition, so within each
 // group the stored array order is kept. Because we only re-sort for DISPLAY (the
 // stored `month.holdings` order is untouched by checking), unchecking a holding
-// returns it to its original slot for free. Drag-and-drop rewrites that stored
-// order via reorderRow, so a manual arrangement persists.
+// returns it to its original slot for free. Reordering rewrites that stored order
+// via reorderRow, so a manual arrangement persists.
+//
+// REORDER via POINTER EVENTS (works the same on mouse + touch; native HTML5 DnD
+// doesn't fire on touch and gives inconsistent cursors). A press that lingers or
+// moves a little starts a drag: on desktop the row grabs immediately; on touch a
+// short LONG-PRESS arms it (so a quick swipe still scrolls the page). Dragging is
+// never started from the checkbox / inputs / buttons, so those keep working.
+const LONGPRESS_MS = 220 // touch: hold this long (without scrolling) to arm a drag
+const MOVE_ARM_PX = 6 // mouse: pointer must travel this far before a drag begins
+
 export function TotalBalance({ month, addRow, updateRow, deleteRow, reorderRow }) {
   const total = totalAvailable(month)
   const bankBalance = totalBankBalance(month)
-  const [dragId, setDragId] = useState(null) // holding id being dragged, or null
-  const [overId, setOverId] = useState(null) // holding id currently dragged over
+  const [dragId, setDragId] = useState(null) // holding id actively dragging, or null
+  const [overId, setOverId] = useState(null) // holding id currently hovered as drop target
+  const drag = useRef(null) // live gesture: { id, pointerId, armed, startY, timer }
 
   // Stable display order: keep the stored array order, then float checked rows to
   // the bottom. Array.prototype.sort is stable in modern engines, so equal keys
@@ -37,32 +47,69 @@ export function TotalBalance({ month, addRow, updateRow, deleteRow, reorderRow }
     .sort((a, b) => Number(!!a.h.excluded) - Number(!!b.h.excluded) || a.i - b.i)
     .map(x => x.h)
 
-  // Don't start a row drag from an interactive control (checkbox, text/number
-  // inputs, buttons) — those need their own pointer/selection behavior.
-  function onRowDragStart(e, id) {
-    const t = e.target
-    if (t.closest('input, textarea, select, button')) {
-      e.preventDefault()
-      return
+  // The holding whose row is under the given viewport Y (excludes the dragged row).
+  function rowIdAtY(y, container) {
+    const rows = container.querySelectorAll('[data-holding-id]')
+    for (const el of rows) {
+      const r = el.getBoundingClientRect()
+      if (y >= r.top && y <= r.bottom) return el.getAttribute('data-holding-id')
     }
-    setDragId(id)
-    e.dataTransfer.effectAllowed = 'move'
+    return null
   }
-  function onRowDragOver(e, id) {
-    if (dragId == null || id === dragId) return
-    e.preventDefault() // allow drop
-    e.dataTransfer.dropEffect = 'move'
-    if (id !== overId) setOverId(id)
-  }
-  function onRowDrop(e, id) {
-    e.preventDefault()
-    if (dragId != null && id !== dragId) reorderRow('holdings', dragId, id)
+
+  function cancelGesture() {
+    const g = drag.current
+    if (g?.timer) clearTimeout(g.timer)
+    drag.current = null
     setDragId(null)
     setOverId(null)
   }
-  function onRowDragEnd() {
-    setDragId(null)
-    setOverId(null)
+
+  function onPointerDown(e, id) {
+    // Never hijack the checkbox, editable fields, or the delete button.
+    if (e.target.closest('input, textarea, select, button')) return
+    if (e.button != null && e.button !== 0) return // ignore right/middle click
+    const isTouch = e.pointerType === 'touch'
+    const g = { id, pointerId: e.pointerId, armed: false, startY: e.clientY, timer: null }
+    drag.current = g
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (isTouch) {
+      // Touch: arm only after a short hold, so a quick vertical swipe still scrolls.
+      g.timer = setTimeout(() => {
+        if (drag.current === g) {
+          g.armed = true
+          setDragId(id)
+        }
+      }, LONGPRESS_MS)
+    }
+  }
+
+  function onPointerMove(e) {
+    const g = drag.current
+    if (!g) return
+    if (!g.armed) {
+      // Mouse: begin dragging once the pointer has moved past the threshold.
+      if (e.pointerType !== 'touch' && Math.abs(e.clientY - g.startY) >= MOVE_ARM_PX) {
+        g.armed = true
+        setDragId(g.id)
+      } else {
+        // Touch not yet armed: if the finger moves before the long-press fires,
+        // treat it as a scroll — abandon the pending drag.
+        if (e.pointerType === 'touch' && Math.abs(e.clientY - g.startY) >= MOVE_ARM_PX) cancelGesture()
+        return
+      }
+    }
+    e.preventDefault() // armed: suppress scroll/selection while reordering
+    const container = e.currentTarget.closest('.rows')
+    if (!container) return
+    const targetId = rowIdAtY(e.clientY, container)
+    setOverId(targetId && targetId !== g.id ? targetId : null)
+  }
+
+  function onPointerUp() {
+    const g = drag.current
+    if (g?.armed && overId && overId !== g.id) reorderRow('holdings', g.id, overId)
+    cancelGesture()
   }
 
   return (
@@ -92,11 +139,11 @@ export function TotalBalance({ month, addRow, updateRow, deleteRow, reorderRow }
             <div
               className={cls.join(' ')}
               key={h.id}
-              draggable
-              onDragStart={e => onRowDragStart(e, h.id)}
-              onDragOver={e => onRowDragOver(e, h.id)}
-              onDrop={e => onRowDrop(e, h.id)}
-              onDragEnd={onRowDragEnd}
+              data-holding-id={h.id}
+              onPointerDown={e => onPointerDown(e, h.id)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={cancelGesture}
             >
               <span className="holding-label">
                 <input

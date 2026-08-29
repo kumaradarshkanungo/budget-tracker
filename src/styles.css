@@ -324,18 +324,18 @@ html, body {
 .rows.separated > .row { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .rows.separated > .row:last-child { padding-bottom: 0; border-bottom: none; }
 
-/* Total Balance holdings: draggable to reorder (no handle — grab the whole row),
+/* Total Balance holdings: press-drag to reorder (no handle — grab the row),
    checked rows strike through and float to the bottom (sort handled in JSX). */
-.holding-row { cursor: grab; }
-.holding-row:active { cursor: grabbing; }
+.holding-row { cursor: grab; touch-action: pan-y; user-select: none; }
+.holding-row.is-dragging { cursor: grabbing; touch-action: none; opacity: 0.5; }
 /* Interactive controls keep their own cursor/selection despite the draggable row. */
-.holding-row input, .holding-row .cell-input, .holding-row button { cursor: auto; }
+.holding-row input, .holding-row .cell-input, .holding-row button { cursor: auto; user-select: auto; }
 .holding-row input[type='checkbox'] { cursor: pointer; }
 .holding-row.is-checked .holding-label,
 .holding-row.is-checked .cell-display,
 .holding-row.is-checked .cell-input { text-decoration: line-through; opacity: 0.6; }
-.holding-row.is-dragging { opacity: 0.4; }
 .holding-row.is-drop-target { box-shadow: inset 0 2px 0 var(--teal); }
+
 
 .total-row {
   margin-top: 10px; padding-top: 10px;
