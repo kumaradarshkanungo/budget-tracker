@@ -14,6 +14,7 @@ export function CreditCardsPage() {
       addRow={s.addRow}
       updateRow={s.updateRow}
       deleteRow={s.deleteRow}
+      syncRecurringNow={s.syncRecurringNow}
     />
   )
 }

@@ -17,7 +17,7 @@ const emptyDraft = () => ({ cardId: '', categoryId: '', date: '', amount: '', no
 // table (Date · Category · Amount · Notes), and add a spend via the app-wide
 // floating action button's "＋ Add spend" action (registered below).
 // Cards and categories are global master lists (settings); spends are per month.
-export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow }) {
+export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow, syncRecurringNow }) {
   const navigate = useNavigate()
   const cards = settings.creditCards || []
   const categories = [...(settings.spendCategories || [])].sort((a, b) => a.name.localeCompare(b.name))
@@ -26,6 +26,7 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   const [filterOpen, setFilterOpen] = useState(false) // card-filter dropdown visibility
   const [modalOpen, setModalOpen] = useState(false)
   const [draft, setDraft] = useState(emptyDraft)
+  const [syncMsg, setSyncMsg] = useState('') // confirmation shown after a manual sync
 
   // Show spends sorted by date ascending (ISO YYYY-MM-DD strings sort lexically);
   // undated rows sort last so they don't jump to the top. Mirrors the EMIs/bills
@@ -58,8 +59,12 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   function closeModal() {
     setModalOpen(false)
   }
+  // Adding/editing/deleting a spend already re-syncs future months automatically
+  // (see addRow/updateRow/deleteRow in useBudgetStore); clear any stale sync
+  // confirmation so it doesn't linger over a fresh edit.
   function saveSpend() {
     if (!draft.cardId) return
+    setSyncMsg('')
     addRow('creditCards', {
       id: uid('ccs'),
       cardId: draft.cardId,
@@ -71,12 +76,31 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
     closeModal()
   }
 
+  // Manual re-sync for parity with "Manage Bills & EMIs": re-apply the templates
+  // to every future month so their card payables pick up the latest spends. Spend
+  // edits already trigger this automatically; the button is an on-demand refresh
+  // (e.g. for months created before auto-sync, or just to reassure the user).
+  function handleSync() {
+    const n = syncRecurringNow ? syncRecurringNow() : 0
+    setSyncMsg(n ? `✓ Synced ${n} future month${n === 1 ? '' : 's'}` : 'No future months to sync')
+  }
+
   const canSave = !!draft.cardId
 
   return (
     <div className="spends-page">
+      <div className="settings-head">
+        <h2>Credit Card Spends</h2>
+        <div className="settings-head-actions">
+          <button className="mb-btn" onClick={handleSync} title="Re-apply recurring templates to all future months so their card payables pick up the latest spends">
+            ⟳ Sync
+          </button>
+        </div>
+      </div>
+      {syncMsg && <p className="sync-msg" role="status">{syncMsg}</p>}
+
       <Section
-        title="Credit Card Spends"
+        title="Spends this month"
         accent="#7c5cff"
         actions={
           cards.length > 0 && (

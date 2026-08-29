@@ -111,22 +111,38 @@ export function useBudgetStore(userId) {
     })
   }, [])
 
+  // Editing the active month's credit-card SPENDS changes the amounts that
+  // card-type recurring bills prefetch for the NEXT month onward. Those future
+  // months are only recomputed by syncRecurringToFutureMonths, so after any spend
+  // mutation we re-run that sync — this keeps future months' Bills & EMIs in step
+  // with spends immediately, matching what template edits already do. (The current
+  // month's own card bill derives from the PRIOR month's spends, so it is
+  // deliberately unaffected.) Combine the month update and the sync into a SINGLE
+  // setStore so both land in one render/persist pass.
+  const mutateAndMaybeSync = useCallback((key, mutate) => {
+    setStore(prev => {
+      const cur = prev.months[prev.activeMonthId]
+      const next = { ...prev, months: { ...prev.months, [prev.activeMonthId]: mutate(cur) } }
+      return key === 'creditCards' ? syncRecurringToFutureMonths(next) : next
+    })
+  }, [])
+
   // Generic list helpers for the section arrays (holdings/banks/budget/bills).
   const addRow = useCallback(
-    (key, row) => updateMonth(m => ({ ...m, [key]: [...(m[key] || []), row] })),
-    [updateMonth]
+    (key, row) => mutateAndMaybeSync(key, m => ({ ...m, [key]: [...(m[key] || []), row] })),
+    [mutateAndMaybeSync]
   )
   const updateRow = useCallback(
     (key, id, patch) =>
-      updateMonth(m => ({
+      mutateAndMaybeSync(key, m => ({
         ...m,
         [key]: (m[key] || []).map(r => (r.id === id ? { ...r, ...patch } : r)),
       })),
-    [updateMonth]
+    [mutateAndMaybeSync]
   )
   const deleteRow = useCallback(
-    (key, id) => updateMonth(m => ({ ...m, [key]: (m[key] || []).filter(r => r.id !== id) })),
-    [updateMonth]
+    (key, id) => mutateAndMaybeSync(key, m => ({ ...m, [key]: (m[key] || []).filter(r => r.id !== id) })),
+    [mutateAndMaybeSync]
   )
 
   // Add a bank (optionally named). Returns nothing; reflects immediately on the
