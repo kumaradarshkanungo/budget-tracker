@@ -338,7 +338,8 @@ html, body {
 .holding-row input[type='checkbox'] { cursor: pointer; }
 .holding-row.is-checked .holding-label,
 .holding-row.is-checked .cell-display,
-.holding-row.is-checked .cell-input { text-decoration: line-through; opacity: 0.6; }
+.holding-row.is-checked .cell-input,
+.holding-row.is-checked .computed { text-decoration: line-through; opacity: 0.6; }
 
 
 .total-row {
