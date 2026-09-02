@@ -68,7 +68,7 @@ function AddBillMenu({ cards, onAddBlank, onAddCard }) {
 }
 
 // Bills & EMIs — date, name, bank tag, amount, paid checkbox.
-export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCardBill }) {
+export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCardBill, resetBillToAuto }) {
   const editable = useEditable()
   const total = billsTotal(month)
   const pending = billsPending(month)
@@ -155,12 +155,25 @@ export function BillsEmis({ month, settings, addRow, updateRow, deleteRow, addCa
               )}
             </span>
             <span data-label="Amount">
-              <MoneyInput
-                value={b.amount}
-                onChange={v =>
-                  updateRow('bills', b.id, { amount: v, ...(b.rbId ? { amountAuto: false } : {}) })
-                }
-              />
+              <span className="amount-cell">
+                <MoneyInput
+                  value={b.amount}
+                  onChange={v =>
+                    updateRow('bills', b.id, { amount: v, ...(b.rbId ? { amountAuto: false } : {}) })
+                  }
+                />
+                {editable && b.rbId && b.amountAuto === false && resetBillToAuto && (
+                  <button
+                    type="button"
+                    className="revert-btn"
+                    title="Reset to calculated amount (from this card's prior-month spends)"
+                    aria-label="Reset to calculated amount"
+                    onClick={() => resetBillToAuto(b.id)}
+                  >
+                    ↺
+                  </button>
+                )}
+              </span>
             </span>
             <span data-label="Paid" className="paid-cell">
               <input

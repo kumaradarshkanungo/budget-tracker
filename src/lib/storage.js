@@ -85,6 +85,13 @@ export function futureMonthIds(store, today = new Date()) {
   return Object.keys(store?.months || {}).filter(id => id > cur)
 }
 
+// Ids of every month in the store — the set a manual all-months Sync recomputes
+// (syncRecurringToFutureMonths with allMonths:true). Used to report how many
+// months the Sync button touched.
+export function allMonthIds(store) {
+  return Object.keys(store?.months || {})
+}
+
 // Whether a recurring-income template applies to a given "YYYY-MM" month, per its
 // optional [startMonth, endMonth] window. Bounds are "YYYY-MM" strings compared
 // lexicographically (zero-padded → correct); a blank/absent bound is unbounded on
@@ -528,15 +535,18 @@ export function applyIncomesToMonth(month, incomes) {
   return [...manual, ...fromTemplates]
 }
 
-// Propagate the current recurring-bill AND recurring-income templates to every
+// Propagate the current recurring-bill AND recurring-income templates to months
 // whose id is strictly greater than the current calendar month. Pure — returns a
 // NEW store (or the same reference if nothing changed). `today` is injectable for
-// tests. prevMonth is read from the ORIGINAL store so iteration order is
-// irrelevant (card amounts derive from spends, which this function never edits).
-// Bills preserve paid + manual amounts; income holdings preserve their checked
-// (excluded) flag; manual holdings are left untouched.
+// tests. With opts.allMonths === true, EVERY month is recomputed instead of only
+// strictly-future ones (used by the manual Sync button and spend-edit auto-sync,
+// so a month's card bill can pick up the prior month's latest spends even when
+// that month is the current/past one). prevMonth is read from the ORIGINAL store
+// so iteration order is irrelevant (card amounts derive from spends, which this
+// function never edits). Bills preserve paid + manual amounts; income holdings
+// preserve their checked (excluded) flag; manual holdings are left untouched.
 export function syncRecurringToFutureMonths(store, opts = {}) {
-  const { today = new Date() } = opts
+  const { today = new Date(), allMonths = false } = opts
   const cur = currentMonthId(today)
   const templates = store.settings?.recurringBills || []
   const incomes = store.settings?.recurringIncomes || []
@@ -545,7 +555,11 @@ export function syncRecurringToFutureMonths(store, opts = {}) {
   const months = { ...store.months }
   let changed = false
   for (const id of Object.keys(months)) {
-    if (id <= cur) continue // future = strictly greater than the current month
+    // Default: only months strictly after the current calendar month are re-synced
+    // (template edits promise "current and past months are unaffected"). With
+    // allMonths:true (the manual Sync button + spend-edit auto-sync) EVERY month is
+    // recomputed, so e.g. September's card bill picks up August's latest spends.
+    if (!allMonths && id <= cur) continue
     const m = months[id]
     const prevMonth = store.months[prevMonthId(id)] || null
     months[id] = {

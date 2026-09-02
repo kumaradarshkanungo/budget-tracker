@@ -59,7 +59,7 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   function closeModal() {
     setModalOpen(false)
   }
-  // Adding/editing/deleting a spend already re-syncs future months automatically
+  // Adding/editing/deleting a spend already re-syncs all months automatically
   // (see addRow/updateRow/deleteRow in useBudgetStore); clear any stale sync
   // confirmation so it doesn't linger over a fresh edit.
   function saveSpend() {
@@ -77,12 +77,13 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   }
 
   // Manual re-sync for parity with "Manage Bills & EMIs": re-apply the templates
-  // to every future month so their card payables pick up the latest spends. Spend
-  // edits already trigger this automatically; the button is an on-demand refresh
-  // (e.g. for months created before auto-sync, or just to reassure the user).
+  // to EVERY month so their card payables pick up the latest spends. A month's
+  // card bill derives from the PRIOR month's spends, so this refreshes e.g. the
+  // next month's bill after you edit this month's spends. Spend edits already
+  // trigger this automatically; the button is an on-demand refresh.
   function handleSync() {
     const n = syncRecurringNow ? syncRecurringNow() : 0
-    setSyncMsg(n ? `✓ Synced ${n} future month${n === 1 ? '' : 's'}` : 'No future months to sync')
+    setSyncMsg(n ? `✓ Synced ${n} month${n === 1 ? '' : 's'}` : 'Nothing to sync')
   }
 
   const canSave = !!draft.cardId
@@ -99,7 +100,7 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
             <button
               className="mb-btn"
               onClick={handleSync}
-              title="Re-apply recurring templates to all future months so their card payables pick up the latest spends"
+              title="Re-apply recurring templates to all months so their card payables pick up the latest spends"
             >
               ⟳ Sync
             </button>

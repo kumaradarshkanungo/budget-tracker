@@ -10,7 +10,8 @@ import {
   applyDefaultBank,
   prevMonthId,
   syncRecurringToFutureMonths,
-  futureMonthIds,
+  applyTemplatesToMonth,
+  allMonthIds,
   uid,
 } from '../lib/storage.js'
 import { creditCardTotal } from '../lib/calc.js'
@@ -112,18 +113,18 @@ export function useBudgetStore(userId) {
   }, [])
 
   // Editing the active month's credit-card SPENDS changes the amounts that
-  // card-type recurring bills prefetch for the NEXT month onward. Those future
-  // months are only recomputed by syncRecurringToFutureMonths, so after any spend
-  // mutation we re-run that sync — this keeps future months' Bills & EMIs in step
-  // with spends immediately, matching what template edits already do. (The current
-  // month's own card bill derives from the PRIOR month's spends, so it is
-  // deliberately unaffected.) Combine the month update and the sync into a SINGLE
-  // setStore so both land in one render/persist pass.
+  // card-type recurring bills prefetch. A month's card bill derives from the PRIOR
+  // month's spends, so editing this month's spends should refresh the NEXT month's
+  // card bill (which may be the current or a past month relative to today). So we
+  // re-sync ALL months (allMonths:true), not just strictly-future ones — otherwise
+  // the following month's Bills & EMIs would go stale until manually Synced. Manual
+  // (amountAuto:false) card bills are still preserved. Combine the month update and
+  // the sync into a SINGLE setStore so both land in one render/persist pass.
   const mutateAndMaybeSync = useCallback((key, mutate) => {
     setStore(prev => {
       const cur = prev.months[prev.activeMonthId]
       const next = { ...prev, months: { ...prev.months, [prev.activeMonthId]: mutate(cur) } }
-      return key === 'creditCards' ? syncRecurringToFutureMonths(next) : next
+      return key === 'creditCards' ? syncRecurringToFutureMonths(next, { allMonths: true }) : next
     })
   }, [])
 
@@ -343,16 +344,41 @@ export function useBudgetStore(userId) {
     })
   }, [])
 
-  // Manually re-apply the current templates to every FUTURE month on demand
-  // (the same sync that runs automatically on template edits). Useful after
-  // editing credit-card SPENDS — which feed card-type bill amounts but don't
-  // themselves trigger a sync — or to refresh months created before auto-sync
-  // existed. Preserves paid status and manually-entered amounts. Returns the
-  // number of future months affected so the UI can confirm the action.
+  // Manually re-apply the current templates to EVERY month on demand (past,
+  // current, and future). Useful after editing credit-card SPENDS — which feed
+  // card-type bill amounts — or to refresh months created before auto-sync
+  // existed. A month's card bill derives from the PRIOR month's spends, so an
+  // all-months pass lets e.g. September's bill pick up August's latest spends.
+  // Preserves paid status and manually-entered (amountAuto:false) amounts. Returns
+  // the number of months affected so the UI can confirm the action.
   const syncRecurringNow = useCallback(() => {
-    const count = futureMonthIds(storeRef.current).length
-    setStore(prev => syncRecurringToFutureMonths(prev))
+    const count = allMonthIds(storeRef.current).length
+    setStore(prev => syncRecurringToFutureMonths(prev, { allMonths: true }))
     return count
+  }, [])
+
+  // Revert a hand-edited card/template bill back to its auto-computed amount. A
+  // manual amount edit flips amountAuto:false (see BillsEmis), which locks the
+  // bill against sync; this flips it back to true and re-derives the amount from
+  // the templates against THIS month (card bills → prior-month spends + EMI addon).
+  // No-op for bills without an rbId (purely manual bills have nothing to compute).
+  const resetBillToAuto = useCallback(billId => {
+    setStore(prev => {
+      const activeId = prev.activeMonthId
+      const cur = prev.months[activeId]
+      const target = (cur?.bills || []).find(b => b.id === billId)
+      if (!target || !target.rbId) return prev
+      // Flip amountAuto on, then recompute this month's bills from the templates.
+      const reset = { ...cur, bills: (cur.bills || []).map(b => (b.id === billId ? { ...b, amountAuto: true } : b)) }
+      const settings = prev.settings || {}
+      const prevMonth = prev.months[prevMonthId(activeId)] || null
+      const bills = applyTemplatesToMonth(reset, settings.recurringBills || [], {
+        cards: settings.creditCards || [],
+        prevMonth,
+        recurringEmis: settings.recurringEmis || [],
+      })
+      return { ...prev, months: { ...prev.months, [activeId]: { ...reset, bills } } }
+    })
   }, [])
 
   // ---- Recurring incomes (global master list in settings) ---------------
@@ -574,6 +600,7 @@ export function useBudgetStore(userId) {
     updateRecurringBill,
     deleteRecurringBill,
     syncRecurringNow,
+    resetBillToAuto,
     addRecurringIncome,
     updateRecurringIncome,
     deleteRecurringIncome,

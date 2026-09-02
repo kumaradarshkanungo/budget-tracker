@@ -450,6 +450,23 @@ html, body {
 .trow.total { font-weight: 700; border-bottom: none; border-top: 2px solid var(--line); }
 .trow.is-paid { opacity: 0.72; }
 .row-actions { display: flex; justify-content: center; }
+/* Amount cell: MoneyInput plus an optional ↺ "reset to calculated" affordance for
+   card/template bills whose amount was hand-edited (amountAuto:false). The input
+   keeps the right edge; the revert button tucks to its left, small and muted. */
+.amount-cell { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.amount-cell .money, .amount-cell .cell-input { flex: 1 1 auto; min-width: 0; }
+.revert-btn {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.revert-btn:hover { color: var(--accent, #7c5cff); background: rgba(124, 92, 255, 0.12); }
 .paid-cell { display: flex; justify-content: center; }
 .paid-cell input { width: 20px; height: 20px; }
 

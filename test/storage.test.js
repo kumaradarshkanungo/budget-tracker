@@ -603,6 +603,66 @@ describe('syncRecurringToFutureMonths', () => {
   })
 })
 
+describe('syncRecurringToFutureMonths — allMonths:true (manual Sync)', () => {
+  const today = new Date(2026, 8, 15) // September 2026 → currentMonthId '2026-09'
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const cardTpl = [{ id: 'rbc', type: 'card', cardId: 'card-hdfc', day: 10, bankName: 'IDFC', amount: 0 }]
+
+  // July/Aug/Sep, each with its own card spends and a card bill that should derive
+  // from the PRIOR month's spends. Today is Sep, so Aug & Sep are "current/past".
+  const makeStore = (augBill = {}) => ({
+    activeMonthId: '2026-09',
+    settings: { recurringBills: cardTpl, creditCards: cards },
+    months: {
+      '2026-07': { id: '2026-07', banks: [{ id: 'j', name: 'IDFC' }], creditCards: [{ id: 's0', cardId: 'card-hdfc', amount: 500 }], bills: [] },
+      '2026-08': { id: '2026-08', banks: [{ id: 'a', name: 'IDFC' }], creditCards: [{ id: 's1', cardId: 'card-hdfc', amount: 2000 }],
+        bills: [{ id: 'b-aug', rbId: 'rbc', amountAuto: true, amount: 0, paid: false, ...augBill }] },
+      '2026-09': { id: '2026-09', banks: [{ id: 's', name: 'IDFC' }], creditCards: [{ id: 's2', cardId: 'card-hdfc', amount: 9000 }],
+        bills: [{ id: 'b-sep', rbId: 'rbc', amountAuto: true, amount: 0, paid: false }] },
+    },
+  })
+
+  it('default (no allMonths) leaves the current & past months untouched', () => {
+    const store = makeStore()
+    const next = syncRecurringToFutureMonths(store, { today })
+    expect(next.months['2026-08']).toBe(store.months['2026-08'])
+    expect(next.months['2026-09']).toBe(store.months['2026-09'])
+  })
+
+  it('allMonths recomputes current & past card bills from each month\'s prior month', () => {
+    const store = makeStore()
+    const next = syncRecurringToFutureMonths(store, { today, allMonths: true })
+    // Aug bill ← Jul spends (500); Sep bill ← Aug spends (2000).
+    expect(next.months['2026-08'].bills[0].amount).toBe(500)
+    expect(next.months['2026-09'].bills[0].amount).toBe(2000)
+  })
+
+  it('allMonths still preserves a hand-edited (amountAuto:false) amount', () => {
+    const store = makeStore({ amount: 12345, amountAuto: false })
+    const next = syncRecurringToFutureMonths(store, { today, allMonths: true })
+    expect(next.months['2026-08'].bills[0].amount).toBe(12345) // manual override kept
+    expect(next.months['2026-09'].bills[0].amount).toBe(2000) // auto one recomputed
+  })
+})
+
+describe('resetBillToAuto logic (flip amountAuto then recompute via applyTemplatesToMonth)', () => {
+  const cards = [{ id: 'card-hdfc', name: 'HDFC Card' }]
+  const cardTpl = [{ id: 'rbc', type: 'card', cardId: 'card-hdfc', day: 10, bankName: 'IDFC', amount: 0 }]
+  const prevMonth = { id: '2026-08', creditCards: [{ id: 's1', cardId: 'card-hdfc', amount: 2000 }] }
+
+  it('recomputes a hand-edited card bill from prior-month spends once amountAuto is flipped back on', () => {
+    const month = {
+      id: '2026-09',
+      banks: [{ id: 's', name: 'IDFC' }],
+      bills: [{ id: 'b-sep', rbId: 'rbc', amount: 99999, amountAuto: true /* flipped from false by resetBillToAuto */, paid: true }],
+    }
+    const bills = applyTemplatesToMonth(month, cardTpl, { cards, prevMonth })
+    expect(bills[0].amount).toBe(2000) // re-derived from Aug spends
+    expect(bills[0].paid).toBe(true) // paid status preserved
+    expect(bills[0].id).toBe('b-sep') // stable id kept
+  })
+})
+
 describe('applyTemplatesToMonth — back-compat with rbId-less bills', () => {
   const month = {
     id: '2026-12',

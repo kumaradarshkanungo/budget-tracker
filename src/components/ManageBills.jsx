@@ -61,7 +61,7 @@ export function ManageBills({
 
   function handleSync() {
     const n = syncRecurringNow ? syncRecurringNow() : 0
-    setSyncMsg(n ? `✓ Synced ${n} future month${n === 1 ? '' : 's'}` : 'No future months to sync')
+    setSyncMsg(n ? `✓ Synced ${n} month${n === 1 ? '' : 's'}` : 'Nothing to sync')
   }
 
   function handleDeleteRecurring(r) {
@@ -142,7 +142,7 @@ export function ManageBills({
       <div className="settings-head">
         <h2>Manage Bills &amp; EMIs</h2>
         <div className="settings-head-actions">
-          <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all future months">
+          <button className="mb-btn" onClick={handleSync} title="Re-apply these templates to all months">
             ⟳ Sync
           </button>
         </div>
