@@ -14,7 +14,9 @@ import {
   syncRecurringToFutureMonths,
   futureMonthIds,
   materializeRecurringIncomes,
+  materializeRecurringExpenses,
   applyIncomesToMonth,
+  applyExpensesToMonth,
   incomeAppliesToMonth,
   emiActiveInMonth,
   emiAddonForCard,
@@ -80,6 +82,7 @@ describe('normalizeStore', () => {
       spendCategories: [],
       recurringBills: [],
       recurringIncomes: [],
+      recurringExpenses: [],
       recurringEmis: [],
     })
   })
@@ -1013,6 +1016,62 @@ describe('syncRecurringToFutureMonths — recurring income month bounds', () => 
     expect(hasRi1(next, '2026-09')).toBe(true)
     expect(hasRi1(next, '2026-10')).toBe(true)
     expect(hasRi1(next, '2026-11')).toBe(true)
+  })
+})
+
+describe('recurring expenses', () => {
+  const expense = {
+    id: 're1',
+    name: 'Streaming',
+    cardId: 'card1',
+    amount: 499,
+    startMonth: '2026-09',
+    endMonth: '2026-10',
+  }
+
+  it('materializes only inside the selected month range', () => {
+    expect(materializeRecurringExpenses([expense], '2026-08')).toEqual([])
+    expect(materializeRecurringExpenses([expense], '2026-09')[0]).toMatchObject({
+      reId: 're1',
+      cardId: 'card1',
+      amount: 499,
+      date: '2026-09-01',
+      notes: 'Streaming',
+    })
+    expect(materializeRecurringExpenses([expense], '2026-11')).toEqual([])
+  })
+
+  it('updates generated expenses while preserving manual card spends', () => {
+    const month = {
+      id: '2026-09',
+      creditCards: [
+        { id: 'manual', cardId: 'card1', amount: 100 },
+        { id: 'generated', reId: 're1', cardId: 'card1', amount: 1 },
+      ],
+    }
+    const out = applyExpensesToMonth(month, [expense])
+    expect(out.find(row => row.id === 'manual')).toMatchObject({ amount: 100 })
+    expect(out.find(row => row.reId === 're1')).toMatchObject({ id: 'generated', amount: 499 })
+  })
+
+  it('includes a recurring expense in the following month card bill during sync', () => {
+    const store = {
+      activeMonthId: '2026-09',
+      settings: {
+        creditCards: [{ id: 'card1', name: 'Main card' }],
+        recurringExpenses: [expense],
+        recurringIncomes: [],
+        recurringEmis: [],
+        recurringBills: [{ id: 'rb1', type: 'card', cardId: 'card1', amount: 0 }],
+      },
+      months: {
+        '2026-09': { id: '2026-09', banks: [], holdings: [], bills: [], creditCards: [] },
+        '2026-10': { id: '2026-10', banks: [], holdings: [], bills: [], creditCards: [] },
+      },
+    }
+    const next = syncRecurringToFutureMonths(store, { allMonths: true })
+    expect(next.months['2026-09'].creditCards[0]).toMatchObject({ reId: 're1', amount: 499 })
+    expect(next.months['2026-10'].bills[0]).toMatchObject({ rbId: 'rb1', amount: 499 })
   })
 })
 

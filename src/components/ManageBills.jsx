@@ -30,6 +30,9 @@ export function ManageBills({
   addRecurringIncome,
   updateRecurringIncome,
   deleteRecurringIncome,
+  addRecurringExpense,
+  updateRecurringExpense,
+  deleteRecurringExpense,
   addRecurringEmi,
   updateRecurringEmi,
   deleteRecurringEmi,
@@ -42,12 +45,13 @@ export function ManageBills({
   // The add-modal: `kind` selects which list we're adding to (null = closed);
   // `draft` holds the in-progress row. Editing existing rows stays inline, so the
   // inline edit/add helpers below only clear the stale sync confirmation.
-  const [addKind, setAddKind] = useState(null) // 'bill' | 'income' | 'emi' | null
+  const [addKind, setAddKind] = useState(null) // 'bill' | 'income' | 'expense' | 'emi' | null
   const [draft, setDraft] = useState({})
   // Editing a template already re-syncs future months on its own; clear any stale
   // sync confirmation so it doesn't imply the edit was included in that message.
   const editTemplate = (id, patch) => { setSyncMsg(''); updateRecurringBill(id, patch) }
   const editIncome = (id, patch) => { setSyncMsg(''); updateRecurringIncome(id, patch) }
+  const editExpense = (id, patch) => { setSyncMsg(''); updateRecurringExpense(id, patch) }
   const editEmi = (id, patch) => { setSyncMsg(''); updateRecurringEmi(id, patch) }
   // Show recurring bills ordered by day-of-month (ascending); templates without a
   // day sort last. Sorting a copy keeps the stored order untouched.
@@ -57,6 +61,7 @@ export function ManageBills({
   }
   const recurringBills = [...(settings.recurringBills || [])].sort((a, b) => dayOf(a) - dayOf(b))
   const recurringIncomes = settings.recurringIncomes || []
+  const recurringExpenses = settings.recurringExpenses || []
   const recurringEmis = settings.recurringEmis || []
 
   function handleSync() {
@@ -78,6 +83,13 @@ export function ManageBills({
     }
   }
 
+  function handleDeleteExpense(r) {
+    if (window.confirm(`Delete recurring expense "${r.name || 'Unnamed'}"? It will be removed from the affected months and their card totals.`)) {
+      setSyncMsg('')
+      deleteRecurringExpense(r.id)
+    }
+  }
+
   function handleDeleteEmi(r) {
     if (window.confirm(`Delete EMI "${r.name || 'Unnamed'}"? Future months' card payables will be recalculated. Current and past months are unaffected.`)) {
       setSyncMsg('')
@@ -90,6 +102,7 @@ export function ManageBills({
   function openAdd(kind) {
     if (kind === 'bill') setDraft({ type: 'manual', day: '', name: '', cardId: '', bankName: '', amount: 0 })
     else if (kind === 'income') setDraft({ name: '', amount: 0, startMonth: '', endMonth: '' })
+    else if (kind === 'expense') setDraft({ name: '', amount: 0, cardId: cards[0]?.id || '', startMonth: '', endMonth: '' })
     else if (kind === 'emi') setDraft({ name: '', cardId: '', amount: 0, startMonth: '', endMonth: '' })
     setAddKind(kind)
   }
@@ -120,6 +133,15 @@ export function ManageBills({
         startMonth: draft.startMonth || '',
         endMonth: draft.endMonth || '',
       })
+    } else if (addKind === 'expense') {
+      if (!draft.cardId) return
+      addRecurringExpense({
+        name: draft.name || '',
+        amount: parseNumber(draft.amount),
+        cardId: draft.cardId,
+        startMonth: draft.startMonth || '',
+        endMonth: draft.endMonth || '',
+      })
     } else if (addKind === 'emi') {
       addRecurringEmi({
         name: draft.name || '',
@@ -134,6 +156,7 @@ export function ManageBills({
 
   const addTitle = addKind === 'bill' ? 'Add recurring bill'
     : addKind === 'income' ? 'Add recurring income'
+    : addKind === 'expense' ? 'Add recurring expense'
     : addKind === 'emi' ? 'Add EMI'
     : ''
 
@@ -360,6 +383,92 @@ export function ManageBills({
         )}
       </Section>
 
+      <Section title="Recurring Expenses">
+        <div className="table expenses-table">
+          <div className="thead">
+            <span>Name</span>
+            <span>Amount</span>
+            <span>Credit card</span>
+            <span>Start</span>
+            <span>End</span>
+            <span />
+          </div>
+          {recurringExpenses.map(r => {
+            const cardLabel = r.cardId ? (cards.find(c => c.id === r.cardId)?.name || '(deleted)') : '—'
+            return (
+              <SwipeToDelete key={r.id} onDelete={() => handleDeleteExpense(r)} label="Delete">
+              <div className="trow">
+                <span data-label="Name">
+                  <TextInput value={r.name} placeholder="Name" onChange={v => editExpense(r.id, { name: v })} />
+                </span>
+                <span data-label="Amount">
+                  <MoneyInput value={r.amount} onChange={v => editExpense(r.id, { amount: v })} />
+                </span>
+                <span data-label="Credit card">
+                  {editable ? (
+                    <select
+                      className="cell-input"
+                      value={r.cardId || ''}
+                      onChange={e => editExpense(r.id, { cardId: e.target.value })}
+                    >
+                      <option value="">— None —</option>
+                      {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  ) : (
+                    <span className="cell-display ro text">{cardLabel}</span>
+                  )}
+                </span>
+                <span data-label="Start">
+                  {editable ? (
+                    <span className="month-field">
+                      <input
+                        type="month"
+                        className="cell-input"
+                        value={r.startMonth || ''}
+                        onChange={e => editExpense(r.id, { startMonth: e.target.value })}
+                      />
+                      {r.startMonth && (
+                        <button type="button" className="month-clear" aria-label="Clear start month" title="Clear start month" onClick={() => editExpense(r.id, { startMonth: '' })}>✕</button>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="cell-display ro text">{r.startMonth ? labelForMonthId(r.startMonth) : '—'}</span>
+                  )}
+                </span>
+                <span data-label="End">
+                  {editable ? (
+                    <span className="month-field">
+                      <input
+                        type="month"
+                        className="cell-input"
+                        value={r.endMonth || ''}
+                        onChange={e => editExpense(r.id, { endMonth: e.target.value })}
+                      />
+                      {r.endMonth && (
+                        <button type="button" className="month-clear" aria-label="Clear end month" title="Clear end month" onClick={() => editExpense(r.id, { endMonth: '' })}>✕</button>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="cell-display ro text">{r.endMonth ? labelForMonthId(r.endMonth) : '—'}</span>
+                  )}
+                </span>
+                <span className="row-actions">
+                  <IconButton label="Delete recurring expense" variant="danger" onClick={() => handleDeleteExpense(r)} />
+                </span>
+              </div>
+              </SwipeToDelete>
+            )
+          })}
+          {recurringExpenses.length === 0 && <p className="hint">No recurring expenses yet — add one below.</p>}
+        </div>
+
+        {editable && (
+          <div className="add-bank-row">
+            <button className="mb-btn" onClick={() => openAdd('expense')}>＋ Add recurring expense</button>
+          </div>
+        )}
+      </Section>
+
       <Section title="EMIs">
         <p className="hint" style={{ marginTop: 0 }}>
           An EMI linked to a credit card is added to that card&rsquo;s payable in the <strong>next</strong> month&rsquo;s
@@ -486,7 +595,14 @@ export function ManageBills({
         footer={
           <>
             <button type="button" className="mb-btn" onClick={closeAdd}>Cancel</button>
-            <button type="button" className="mb-btn primary" onClick={submitAdd}>Add</button>
+            <button
+              type="button"
+              className="mb-btn primary"
+              onClick={submitAdd}
+              disabled={addKind === 'expense' && !draft.cardId}
+            >
+              Add
+            </button>
           </>
         }
       >
@@ -577,6 +693,45 @@ export function ManageBills({
                 placeholder="0"
                 onChange={e => setD({ amount: e.target.value })}
               />
+            </div>
+            <div className="modal-field">
+              <label>Start month</label>
+              <input type="month" value={draft.startMonth || ''} onChange={e => setD({ startMonth: e.target.value })} />
+            </div>
+            <div className="modal-field">
+              <label>End month</label>
+              <input type="month" value={draft.endMonth || ''} onChange={e => setD({ endMonth: e.target.value })} />
+            </div>
+          </>
+        )}
+
+        {addKind === 'expense' && (
+          <>
+            <div className="modal-field">
+              <label>Name</label>
+              <input
+                type="text"
+                value={draft.name || ''}
+                placeholder="Name"
+                onChange={e => setD({ name: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Amount</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={draft.amount ?? ''}
+                placeholder="0"
+                onChange={e => setD({ amount: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Credit card</label>
+              <select value={draft.cardId || ''} onChange={e => setD({ cardId: e.target.value })}>
+                <option value="">— Select a card —</option>
+                {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
             </div>
             <div className="modal-field">
               <label>Start month</label>

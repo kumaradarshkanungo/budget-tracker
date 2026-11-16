@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 
-// Minimal centered modal dialog. Closes on backdrop click and Escape. Renders
-// nothing when closed. Mirrors the drawer's Escape-listener pattern.
+// Minimal centered modal dialog. It intentionally stays open when the backdrop
+// is clicked so an accidental click cannot discard in-progress form data.
+// Escape and the explicit close/cancel controls still close it.
 export function Modal({ open, onClose, title, children, footer }) {
   useEffect(() => {
     if (!open) return
@@ -15,7 +16,7 @@ export function Modal({ open, onClose, title, children, footer }) {
   if (!open) return null
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
       <div
         className="modal-card"
         role="dialog"

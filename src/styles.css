@@ -775,6 +775,7 @@ html, body {
 /* Breathing room between the list's description (.hint) and its first row/card. */
 .settings-page .manage-table,
 .settings-page .incomes-table,
+.settings-page .expenses-table,
 .settings-page .emis-table { margin-top: 12px; }
 .manage-table .trow .cell-input,
 .manage-table .trow .cell-display { width: 100%; min-width: 0; }
@@ -789,14 +790,22 @@ html, body {
 .mb-subhead { margin: 22px 0 6px; font-size: 15px; font-weight: 700; }
 .mb-subhead:first-of-type { margin-top: 8px; }
 /* Recurring Incomes manager — Name | Amount | Start | End | delete. Amount
-   right-aligned like every other money cell in the app; Start/End are optional
+   is centered; Start/End are optional
    "YYYY-MM" month pickers (blank = from-next-month / all-future). */
 .incomes-table .thead, .incomes-table .trow { grid-template-columns: 1.6fr 1fr 1.1fr 1.1fr 32px; }
 .incomes-table .trow .cell-input,
 .incomes-table .trow .cell-display { width: 100%; min-width: 0; }
-.incomes-table .trow > span[data-label='Amount'] { text-align: right; }
+.incomes-table .trow > span[data-label='Amount'] { text-align: center; }
 .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
-.incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: right; }
+.incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: center; }
+
+/* Recurring Expenses: Name · Amount · Credit card · Start · End · delete. */
+.expenses-table .thead, .expenses-table .trow { grid-template-columns: 1.35fr 1fr 1.2fr 1.1fr 1.1fr 32px; }
+.expenses-table .trow .cell-input,
+.expenses-table .trow .cell-display { width: 100%; min-width: 0; }
+.expenses-table .trow > span[data-label='Amount'] { text-align: center; }
+.expenses-table .trow > span[data-label='Amount'] .cell-input.money,
+.expenses-table .trow > span[data-label='Amount'] .cell-display.money { text-align: center; }
 
 /* EMIs table: Name · Credit card · Amount · Start · End · delete. Start/End are
    "YYYY-MM" month pickers (blank = unbounded); a card-linked EMI feeds the next
@@ -940,9 +949,22 @@ html, body {
      and matches :empty — collapse it so it adds no stray full-width gap. */
   .incomes-table .trow > .row-actions:empty { display: none; }
   .incomes-table .trow > .row-actions { grid-column: 1 / -1; }
-  .incomes-table .trow > span[data-label='Amount'] { text-align: left; }
   .incomes-table .trow > span[data-label='Amount'] .cell-input.money,
-  .incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: left; }
+  .incomes-table .trow > span[data-label='Amount'] .cell-display.money { text-align: center; }
+  .incomes-table .trow > span[data-label='Amount'] { text-align: center; }
+  /* Expenses table follows the EMI two-column mobile layout. */
+  .expenses-table .trow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+    padding: 12px 0;
+  }
+  .expenses-table .trow > span[data-label='Name'] { grid-column: 1 / -1; }
+  .expenses-table .trow > .row-actions:empty { display: none; }
+  .expenses-table .trow > .row-actions { grid-column: 1 / -1; }
+  .expenses-table .trow > span[data-label='Amount'],
+  .expenses-table .trow > span[data-label='Amount'] .cell-input.money,
+  .expenses-table .trow > span[data-label='Amount'] .cell-display.money { text-align: center; }
   /* EMIs table on mobile: two-per-row flow (Name | Card, Amount | Start, End),
      Name spans the full width, delete drops to its own full-width row. */
   .emis-table .trow {
@@ -971,9 +993,10 @@ html, body {
   .trow .computed,
   .trow .cell-display.ro.money { text-align: left; }
   .row-actions { justify-content: flex-start; }
-  /* The full-width delete row in these two tables reads better right-aligned. */
+  /* The full-width delete row in these tables reads better right-aligned. */
   .manage-table .trow > .row-actions,
-  .incomes-table .trow > .row-actions { justify-content: flex-end; }
+  .incomes-table .trow > .row-actions,
+  .expenses-table .trow > .row-actions { justify-content: flex-end; }
   .trow.total { grid-template-columns: 1fr 1fr; }
   /* Budget total keeps the 3-up money layout; label spans full width on top. */
   .budget-table .trow.total { grid-template-columns: 1fr 1fr 1fr; }
@@ -1036,7 +1059,7 @@ html, body {
   .swipe-row.is-dragging .swipe-delete-panel { visibility: visible; }
   .swipe-row.is-open .swipe-delete-panel { pointer-events: auto; }
 
-  /* On mobile the swipe gesture replaces the edit-mode trash button in these 6
+  /* On mobile the swipe gesture replaces the edit-mode trash button in these
      card tables, so hide .row-actions entirely (desktop keeps it — no swipe
      there). This also drops the full-width delete row that manage/incomes/emis
      add (the .emis-table rule at ~919 forces .row-actions full-width; display:none
@@ -1046,6 +1069,7 @@ html, body {
   .spends-table .trow > .row-actions,
   .manage-table .trow > .row-actions,
   .incomes-table .trow > .row-actions,
+  .expenses-table .trow > .row-actions,
   .emis-table .trow > .row-actions { display: none; }
 
   /* Read-only text cells inside a swipe card are nowrap; give them ellipsis so a
@@ -1060,20 +1084,25 @@ html, body {
   /* ---- Manage Bills & EMIs page (mobile): smaller type + each recurring row
      rendered as its own distinct card ------------------------------------- */
   .settings-page .manage-table,
-  .settings-page .incomes-table { font-size: 13px; }
+  .settings-page .incomes-table,
+  .settings-page .expenses-table { font-size: 13px; }
   .settings-page .manage-table .cell-input,
   .settings-page .manage-table .cell-display,
   .settings-page .incomes-table .cell-input,
-  .settings-page .incomes-table .cell-display { font-size: 13px; }
+  .settings-page .incomes-table .cell-display,
+  .settings-page .expenses-table .cell-input,
+  .settings-page .expenses-table .cell-display { font-size: 13px; }
   .settings-page .mb-subhead { font-size: 14px; }
   .settings-page .manage-table .trow > span::before,
-  .settings-page .incomes-table .trow > span::before { font-size: 9px; }
+  .settings-page .incomes-table .trow > span::before,
+  .settings-page .expenses-table .trow > span::before { font-size: 9px; }
 
   /* Turn each swipe-wrapped recurring row into an individual card: rounded,
      bordered, gapped — instead of divider-separated rows. overflow:hidden on
      .swipe-row already clips the sliding fg + red panel to the rounded corners. */
   .settings-page .manage-table .swipe-row,
   .settings-page .incomes-table .swipe-row,
+  .settings-page .expenses-table .swipe-row,
   .settings-page .emis-table .swipe-row {
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -1082,6 +1111,7 @@ html, body {
   }
   .settings-page .manage-table .swipe-row > .swipe-fg > .trow,
   .settings-page .incomes-table .swipe-row > .swipe-fg > .trow,
+  .settings-page .expenses-table .swipe-row > .swipe-fg > .trow,
   .settings-page .emis-table .swipe-row > .swipe-fg > .trow {
     padding: 10px 12px;
   }

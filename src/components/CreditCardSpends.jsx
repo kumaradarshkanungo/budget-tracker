@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { creditCardTotal } from '../lib/calc.js'
-import { uid, monthStartDate } from '../lib/storage.js'
+import { uid } from '../lib/storage.js'
 import { parseNumber, formatINR } from '../lib/format.js'
 import { Computed, Section, IconButton } from './ui.jsx'
 import { MoneyInput, TextInput } from './Inputs.jsx'
@@ -12,6 +12,13 @@ import { useEditable } from '../context/EditModeContext.jsx'
 import { useRegisterPageAction, useRegisterSecondaryAction } from '../context/PageActionsContext.jsx'
 
 const emptyDraft = () => ({ cardId: '', categoryId: '', date: '', amount: '', notes: '' })
+const todayDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 // Credit Card Spends screen: pick a card (or all), see this month's spends in a
 // table (Date · Category · Amount · Notes), and add a spend via the app-wide
@@ -48,9 +55,9 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   const categoryName = id => categories.find(c => c.id === id)?.name || '(deleted)'
 
   const openModal = useCallback(() => {
-    setDraft({ ...emptyDraft(), cardId: selectedCard || cards[0]?.id || '', date: monthStartDate(month.id) })
+    setDraft({ ...emptyDraft(), cardId: selectedCard || cards[0]?.id || '', date: todayDate() })
     setModalOpen(true)
-  }, [selectedCard, cards, month.id])
+  }, [selectedCard, cards])
   // Register this page's primary add action so the app-wide FAB shows "＋ Add spend".
   useRegisterPageAction(openModal, '＋ Add spend', [openModal])
   // Register the insights view as the FAB's secondary action (📊 icon).
@@ -234,6 +241,18 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
               </select>
             </div>
             <div className="modal-field">
+              <label htmlFor="spend-amount">Amount</label>
+              <input
+                id="spend-amount"
+                className="cell-input"
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={draft.amount}
+                onChange={e => setDraft(d => ({ ...d, amount: e.target.value }))}
+              />
+            </div>
+            <div className="modal-field">
               <label htmlFor="spend-category">Category</label>
               <select
                 id="spend-category"
@@ -248,18 +267,6 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="modal-field">
-              <label htmlFor="spend-amount">Amount</label>
-              <input
-                id="spend-amount"
-                className="cell-input"
-                type="text"
-                inputMode="decimal"
-                placeholder="0"
-                value={draft.amount}
-                onChange={e => setDraft(d => ({ ...d, amount: e.target.value }))}
-              />
             </div>
             <div className="modal-field">
               <label htmlFor="spend-date">Date</label>

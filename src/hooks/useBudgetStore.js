@@ -434,6 +434,55 @@ export function useBudgetStore(userId) {
     })
   }, [])
 
+  // ---- Recurring credit-card expenses (global master list) -------------
+  // Each template is materialized as a credit-card spend in every month inside
+  // its inclusive start/end window. Re-sync all existing months so a newly
+  // added range immediately contributes to those months' card totals and to the
+  // following month's generated card bill.
+  const addRecurringExpense = useCallback((tpl = {}) => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringExpenses: [
+            ...((prev.settings || {}).recurringExpenses || []),
+            { id: uid('re'), name: '', amount: 0, cardId: '', startMonth: '', endMonth: '', ...tpl },
+          ],
+        },
+      }
+      return syncRecurringToFutureMonths(next, { allMonths: true })
+    })
+  }, [])
+
+  const updateRecurringExpense = useCallback((id, patch) => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringExpenses: ((prev.settings || {}).recurringExpenses || []).map(r =>
+            r.id === id ? { ...r, ...patch } : r
+          ),
+        },
+      }
+      return syncRecurringToFutureMonths(next, { allMonths: true })
+    })
+  }, [])
+
+  const deleteRecurringExpense = useCallback(id => {
+    setStore(prev => {
+      const next = {
+        ...prev,
+        settings: {
+          ...(prev.settings || {}),
+          recurringExpenses: ((prev.settings || {}).recurringExpenses || []).filter(r => r.id !== id),
+        },
+      }
+      return syncRecurringToFutureMonths(next, { allMonths: true })
+    })
+  }, [])
+
   // ---- Recurring EMIs (global master list in settings) ------------------
   // Templates hold { id, name, cardId, amount, startMonth, endMonth }. An EMI is
   // NOT materialized as its own bill or spend row; instead, a card-linked EMI
@@ -604,6 +653,9 @@ export function useBudgetStore(userId) {
     addRecurringIncome,
     updateRecurringIncome,
     deleteRecurringIncome,
+    addRecurringExpense,
+    updateRecurringExpense,
+    deleteRecurringExpense,
     addRecurringEmi,
     updateRecurringEmi,
     deleteRecurringEmi,

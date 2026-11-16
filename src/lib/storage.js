@@ -188,14 +188,14 @@ export function defaultStore() {
   return {
     activeMonthId: m.id,
     months: { [m.id]: m },
-    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], recurringEmis: [] },
+    settings: { defaultBankName: 'IDFC', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], recurringExpenses: [], recurringEmis: [] },
   }
 }
 
 // Normalize any loaded store so older/partial documents get the new fields.
 export function normalizeStore(store) {
   if (!store || !store.months || !Object.keys(store.months).length) return defaultStore()
-  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], recurringEmis: [], ...(store.settings || {}) }
+  const settings = { defaultBankName: '', creditCards: [], spendCategories: [], recurringBills: [], recurringIncomes: [], recurringExpenses: [], recurringEmis: [], ...(store.settings || {}) }
   // MIGRATION: the old computed "Available" holding is now derived (Total Bank
   // Balance = sum of bank actuals) and no longer stored. Drop it — but ONLY from
   // an UNMIGRATED month, and only the machine-created row (index 0, no riId,
@@ -242,7 +242,7 @@ export const PER_MONTH_KEYS = ['holdings', 'banks', 'budget', 'bills', 'creditCa
 
 // The global settings lists that get merged by row id on import (plus the
 // scalar `defaultBankName`, handled separately).
-const SETTINGS_LISTS = ['creditCards', 'spendCategories', 'recurringBills', 'recurringIncomes', 'recurringEmis']
+const SETTINGS_LISTS = ['creditCards', 'spendCategories', 'recurringBills', 'recurringIncomes', 'recurringExpenses', 'recurringEmis']
 
 // Build a filtered backup document from a store. `monthIds` selects which months
 // to include; `perMonthKeys` selects which per-month data groups to keep on each
@@ -402,6 +402,24 @@ export function materializeRecurringIncomes(incomes, monthId) {
     }))
 }
 
+// Turn recurring credit-card expenses into concrete spends for a month. The
+// generated row carries `reId` provenance so re-syncing can update or remove it
+// without touching manually entered spends. These rows participate in the
+// normal card total, and therefore in the following month's card bill.
+export function materializeRecurringExpenses(expenses, monthId) {
+  return (expenses || [])
+    .filter(tpl => incomeAppliesToMonth(tpl, monthId))
+    .map(tpl => ({
+      id: uid('ccs'),
+      reId: tpl.id,
+      cardId: tpl.cardId || '',
+      categoryId: '',
+      date: monthStartDate(monthId),
+      amount: tpl.amount || 0,
+      notes: tpl.name || '',
+    }))
+}
+
 // Build a fresh month for the given "YYYY-MM" id. Carries over bank names and
 // budget categories from a template month (amounts zeroed). Marks the settings
 // default bank as primary if present, else keeps the template's primary. Seeds
@@ -428,7 +446,7 @@ export function newMonthFor(monthId, template, defaultBankName, settings, prevMo
       cards: settings?.creditCards || [],
       recurringEmis: settings?.recurringEmis || [],
     }),
-    creditCards: [],
+    creditCards: materializeRecurringExpenses(settings?.recurringExpenses || [], monthId),
   }
 }
 
@@ -535,33 +553,65 @@ export function applyIncomesToMonth(month, incomes) {
   return [...manual, ...fromTemplates]
 }
 
-// Propagate the current recurring-bill AND recurring-income templates to months
+// Re-derive a month's template-owned credit-card expenses while preserving all
+// manual spends and stable ids for surviving recurring rows.
+export function applyExpensesToMonth(month, expenses) {
+  const templates = (expenses || []).filter(tpl => incomeAppliesToMonth(tpl, month?.id))
+  const tplIds = new Set(templates.map(t => t.id))
+  const existing = month?.creditCards || []
+  const manual = existing.filter(spend => !spend.reId)
+  const byRe = new Map(existing.filter(spend => spend.reId && tplIds.has(spend.reId)).map(spend => [spend.reId, spend]))
+  const fromTemplates = templates.map(tpl => {
+    const prev = byRe.get(tpl.id)
+    return {
+      id: prev?.id || uid('ccs'),
+      reId: tpl.id,
+      cardId: tpl.cardId || '',
+      categoryId: '',
+      date: monthStartDate(month.id),
+      amount: tpl.amount || 0,
+      notes: tpl.name || '',
+    }
+  })
+  return [...manual, ...fromTemplates]
+}
+
+// Propagate recurring bills, incomes, and expenses to months
 // whose id is strictly greater than the current calendar month. Pure — returns a
 // NEW store (or the same reference if nothing changed). `today` is injectable for
 // tests. With opts.allMonths === true, EVERY month is recomputed instead of only
 // strictly-future ones (used by the manual Sync button and spend-edit auto-sync,
 // so a month's card bill can pick up the prior month's latest spends even when
-// that month is the current/past one). prevMonth is read from the ORIGINAL store
-// so iteration order is irrelevant (card amounts derive from spends, which this
-// function never edits). Bills preserve paid + manual amounts; income holdings
-// preserve their checked (excluded) flag; manual holdings are left untouched.
+// that month is the current/past one). Expenses are applied in a first pass so
+// each card bill reads the fully updated prior month's spends. Bills preserve
+// paid + manual amounts; income holdings preserve their checked (excluded) flag;
+// manual holdings and card spends are left untouched.
 export function syncRecurringToFutureMonths(store, opts = {}) {
   const { today = new Date(), allMonths = false } = opts
   const cur = currentMonthId(today)
   const templates = store.settings?.recurringBills || []
   const incomes = store.settings?.recurringIncomes || []
+  const expenses = store.settings?.recurringExpenses || []
   const cards = store.settings?.creditCards || []
   const recurringEmis = store.settings?.recurringEmis || []
   const months = { ...store.months }
   let changed = false
-  for (const id of Object.keys(months)) {
+  const targetIds = Object.keys(months).filter(id => allMonths || id > cur)
+
+  // Expenses are materialized first because a card bill derives from the prior
+  // month's spends. The bill pass below must see newly synced recurring spends.
+  for (const id of targetIds) {
+    const m = months[id]
+    months[id] = { ...m, creditCards: applyExpensesToMonth(m, expenses) }
+  }
+
+  for (const id of targetIds) {
     // Default: only months strictly after the current calendar month are re-synced
     // (template edits promise "current and past months are unaffected"). With
     // allMonths:true (the manual Sync button + spend-edit auto-sync) EVERY month is
     // recomputed, so e.g. September's card bill picks up August's latest spends.
-    if (!allMonths && id <= cur) continue
     const m = months[id]
-    const prevMonth = store.months[prevMonthId(id)] || null
+    const prevMonth = months[prevMonthId(id)] || null
     months[id] = {
       ...m,
       bills: applyTemplatesToMonth(m, templates, { cards, prevMonth, recurringEmis }),

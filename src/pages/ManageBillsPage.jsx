@@ -18,6 +18,9 @@ export function ManageBillsPage() {
       addRecurringIncome={s.addRecurringIncome}
       updateRecurringIncome={s.updateRecurringIncome}
       deleteRecurringIncome={s.deleteRecurringIncome}
+      addRecurringExpense={s.addRecurringExpense}
+      updateRecurringExpense={s.updateRecurringExpense}
+      deleteRecurringExpense={s.deleteRecurringExpense}
       addRecurringEmi={s.addRecurringEmi}
       updateRecurringEmi={s.updateRecurringEmi}
       deleteRecurringEmi={s.deleteRecurringEmi}
