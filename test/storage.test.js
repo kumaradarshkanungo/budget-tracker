@@ -14,12 +14,11 @@ import {
   syncRecurringToFutureMonths,
   futureMonthIds,
   materializeRecurringIncomes,
-  materializeRecurringExpenses,
   applyIncomesToMonth,
-  applyExpensesToMonth,
   incomeAppliesToMonth,
   emiActiveInMonth,
   emiAddonForCard,
+  recurringExpenseAddonForCard,
   snapshotStore,
   restoredStore,
   selectStore,
@@ -1029,32 +1028,15 @@ describe('recurring expenses', () => {
     endMonth: '2026-10',
   }
 
-  it('materializes only inside the selected month range', () => {
-    expect(materializeRecurringExpenses([expense], '2026-08')).toEqual([])
-    expect(materializeRecurringExpenses([expense], '2026-09')[0]).toMatchObject({
-      reId: 're1',
-      cardId: 'card1',
-      amount: 499,
-      date: '2026-09-01',
-      notes: 'Streaming',
-    })
-    expect(materializeRecurringExpenses([expense], '2026-11')).toEqual([])
+  it('adds only inside the selected month range and for the selected card', () => {
+    expect(recurringExpenseAddonForCard([expense], 'card1', '2026-08')).toBe(0)
+    expect(recurringExpenseAddonForCard([expense], 'card1', '2026-09')).toBe(499)
+    expect(recurringExpenseAddonForCard([expense], 'card1', '2026-10')).toBe(499)
+    expect(recurringExpenseAddonForCard([expense], 'card1', '2026-11')).toBe(0)
+    expect(recurringExpenseAddonForCard([expense], 'another-card', '2026-09')).toBe(0)
   })
 
-  it('updates generated expenses while preserving manual card spends', () => {
-    const month = {
-      id: '2026-09',
-      creditCards: [
-        { id: 'manual', cardId: 'card1', amount: 100 },
-        { id: 'generated', reId: 're1', cardId: 'card1', amount: 1 },
-      ],
-    }
-    const out = applyExpensesToMonth(month, [expense])
-    expect(out.find(row => row.id === 'manual')).toMatchObject({ amount: 100 })
-    expect(out.find(row => row.reId === 're1')).toMatchObject({ id: 'generated', amount: 499 })
-  })
-
-  it('includes a recurring expense in the following month card bill during sync', () => {
+  it('adds to the following month card bill without creating a spend row', () => {
     const store = {
       activeMonthId: '2026-09',
       settings: {
@@ -1065,13 +1047,28 @@ describe('recurring expenses', () => {
         recurringBills: [{ id: 'rb1', type: 'card', cardId: 'card1', amount: 0 }],
       },
       months: {
-        '2026-09': { id: '2026-09', banks: [], holdings: [], bills: [], creditCards: [] },
+        '2026-09': {
+          id: '2026-09',
+          banks: [],
+          holdings: [],
+          bills: [],
+          creditCards: [
+            { id: 'manual', cardId: 'card1', amount: 100 },
+            { id: 'old-generated', reId: 're1', cardId: 'card1', amount: 499 },
+          ],
+        },
         '2026-10': { id: '2026-10', banks: [], holdings: [], bills: [], creditCards: [] },
       },
     }
     const next = syncRecurringToFutureMonths(store, { allMonths: true })
-    expect(next.months['2026-09'].creditCards[0]).toMatchObject({ reId: 're1', amount: 499 })
-    expect(next.months['2026-10'].bills[0]).toMatchObject({ rbId: 'rb1', amount: 499 })
+    expect(next.months['2026-09'].creditCards).toEqual([{ id: 'manual', cardId: 'card1', amount: 100 }])
+    expect(next.months['2026-10'].bills[0]).toMatchObject({ rbId: 'rb1', amount: 599 })
+  })
+
+  it('does not seed recurring expenses into a new month spend list', () => {
+    const template = { banks: [{ id: 'bank1', name: 'IDFC', primary: true }], budget: [] }
+    const month = newMonthFor('2026-09', template, 'IDFC', { recurringExpenses: [expense] })
+    expect(month.creditCards).toEqual([])
   })
 })
 

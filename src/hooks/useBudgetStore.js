@@ -376,6 +376,7 @@ export function useBudgetStore(userId) {
         cards: settings.creditCards || [],
         prevMonth,
         recurringEmis: settings.recurringEmis || [],
+        recurringExpenses: settings.recurringExpenses || [],
       })
       return { ...prev, months: { ...prev.months, [activeId]: { ...reset, bills } } }
     })
@@ -435,10 +436,9 @@ export function useBudgetStore(userId) {
   }, [])
 
   // ---- Recurring credit-card expenses (global master list) -------------
-  // Each template is materialized as a credit-card spend in every month inside
-  // its inclusive start/end window. Re-sync all existing months so a newly
-  // added range immediately contributes to those months' card totals and to the
-  // following month's generated card bill.
+  // Each template is a bill-only card add-on inside its inclusive start/end
+  // window. Like an EMI, it creates no spend row: an expense active in month M
+  // contributes to that card's generated payable in month M+1.
   const addRecurringExpense = useCallback((tpl = {}) => {
     setStore(prev => {
       const next = {

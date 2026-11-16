@@ -384,6 +384,10 @@ export function ManageBills({
       </Section>
 
       <Section title="Recurring Expenses">
+        <p className="hint" style={{ marginTop: 0 }}>
+          A recurring expense is added directly to the selected card&rsquo;s payable in the <strong>next</strong> month,
+          like an EMI. It does not create a credit-card spend entry.
+        </p>
         <div className="table expenses-table">
           <div className="thead">
             <span>Name</span>
