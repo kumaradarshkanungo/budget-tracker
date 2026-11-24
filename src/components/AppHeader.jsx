@@ -20,7 +20,18 @@ export function AppHeader({ auth, onNavigate, onToggleMenu, hidden = false }) {
       >
         ☰
       </button>
-      <h1 className="greeting" onClick={() => onNavigate('/')}>
+      <h1
+        className="greeting"
+        role="button"
+        tabIndex={0}
+        onClick={() => onNavigate('/')}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onNavigate('/')
+          }
+        }}
+      >
         {signedIn ? (
           <>
             <span className="greet-lead">Hi, </span>
