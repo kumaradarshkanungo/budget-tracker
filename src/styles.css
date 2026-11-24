@@ -610,8 +610,15 @@ html, body {
   position: fixed; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   z-index: 46;
   display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  /* The collapsed action pills still occupy layout height (they're only faded
+     out with opacity, not display:none), so the container spans a tall strip at
+     the bottom-right. Make the container itself click-through so that invisible
+     strip can't block controls behind it (e.g. the bottom rows' delete buttons);
+     only the toggle (always) and the pills (when open) re-enable pointer events. */
+  pointer-events: none;
 }
 .fab-menu .fab { position: static; }
+.fab-menu .fab-toggle { pointer-events: auto; }
 .fab-menu .fab.is-editing { background: var(--teal); }
 
 /* The expanding action pills — hidden (and inert) until the menu opens. */

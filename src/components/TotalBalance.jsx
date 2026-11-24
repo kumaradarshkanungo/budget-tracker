@@ -61,7 +61,13 @@ function SortableHolding({ h, updateRow, deleteRow }) {
   if (checked) cls.push('is-checked')
   if (isDragging) cls.push('is-dragging')
 
-  // Prevent a pointerdown on interactive controls from starting a drag.
+  // Keep interactive controls from reaching the drag listeners spread on the row.
+  // pointerdown would start a mouse/touch drag; keydown matters just as much —
+  // @dnd-kit's KeyboardSensor claims Space/Enter to begin a keyboard drag and
+  // preventDefault()s them, which otherwise swallows the Space key inside the
+  // label input and blocks Space from toggling the checkbox / opening the amount
+  // editor. Stopping propagation here lets the controls behave normally while
+  // keyboard reordering still works when the row itself is focused.
   const stop = e => e.stopPropagation()
 
   return (
@@ -78,12 +84,13 @@ function SortableHolding({ h, updateRow, deleteRow }) {
           checked={checked}
           onChange={e => updateRow('holdings', h.id, { excluded: e.target.checked })}
           onPointerDown={stop}
+          onKeyDown={stop}
           aria-label="Exclude from Total Available (received / already in a bank)"
         />
         {h.riId ? (
           <span className="cell-display ro text">{h.label || '—'}</span>
         ) : (
-          <span onPointerDown={stop}>
+          <span onPointerDown={stop} onKeyDown={stop}>
             <TextInput
               value={h.label}
               placeholder="Label"
@@ -96,12 +103,12 @@ function SortableHolding({ h, updateRow, deleteRow }) {
         {h.riId ? (
           <Computed value={h.amount} />
         ) : (
-          <span onPointerDown={stop}>
+          <span onPointerDown={stop} onKeyDown={stop}>
             <MoneyInput value={h.amount} onChange={v => updateRow('holdings', h.id, { amount: v })} />
           </span>
         )}
         {!h.riId && (
-          <span onPointerDown={stop}>
+          <span onPointerDown={stop} onKeyDown={stop}>
             <IconButton
               label="Delete"
               variant="danger"

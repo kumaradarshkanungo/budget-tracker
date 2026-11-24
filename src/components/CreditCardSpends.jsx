@@ -34,6 +34,7 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   const [modalOpen, setModalOpen] = useState(false)
   const [draft, setDraft] = useState(emptyDraft)
   const [syncMsg, setSyncMsg] = useState('') // confirmation shown after a manual sync
+  const amountRef = useRef(null) // amount input, focused on open so you can type straight away
 
   // Show spends sorted by date ascending (ISO YYYY-MM-DD strings sort lexically);
   // undated rows sort last so they don't jump to the top. Mirrors the EMIs/bills
@@ -66,6 +67,14 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
   function closeModal() {
     setModalOpen(false)
   }
+  // When the dialog opens, drop the caret into the Amount field (and select any
+  // prefilled text) so the user can start typing the amount immediately.
+  useEffect(() => {
+    if (modalOpen && amountRef.current) {
+      amountRef.current.focus()
+      amountRef.current.select()
+    }
+  }, [modalOpen])
   // Adding/editing/deleting a spend already re-syncs all months automatically
   // (see addRow/updateRow/deleteRow in useBudgetStore); clear any stale sync
   // confirmation so it doesn't linger over a fresh edit.
@@ -244,6 +253,7 @@ export function CreditCardSpends({ month, settings, addRow, updateRow, deleteRow
               <label htmlFor="spend-amount">Amount</label>
               <input
                 id="spend-amount"
+                ref={amountRef}
                 className="cell-input"
                 type="text"
                 inputMode="decimal"
